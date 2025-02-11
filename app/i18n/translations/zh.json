@@ -1,0 +1,38 @@
+{
+    "common": {
+        "income": "收入",
+        "expense": "支出",
+        "today": "今天",
+        "yesterday": "昨天",
+        "save": "保存",
+        "cancel": "取消",
+        "delete": "删除",
+        "edit": "编辑",
+        "add": "添加",
+        "category": "分类",
+        "amount": "金额",
+        "note": "备注",
+        "date": "日期"
+    },
+    "home": {
+        "title": "首页",
+        "stats": "统计",
+        "profile": "我的",
+        "noTransactions": "暂无交易记录"
+    },
+    "add": {
+        "addIncome": "添加收入",
+        "addExpense": "添加支出",
+        "favorites": "收藏",
+        "new": "新建",
+        "addToFavorites": "添加到收藏",
+        "noFavorites": "暂无收藏",
+        "excludeFromStats": "不计入月度收支"
+    },
+    "categories": {
+        "title": "分类管理",
+        "addCategory": "添加分类",
+        "categoryName": "分类名称",
+        "selectIcon": "选择图标"
+    }
+}

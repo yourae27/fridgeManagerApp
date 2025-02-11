@@ -1,0 +1,38 @@
+{
+    "common": {
+        "income": "Income",
+        "expense": "Expense",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "add": "Add",
+        "category": "Category",
+        "amount": "Amount",
+        "note": "Note",
+        "date": "Date"
+    },
+    "home": {
+        "title": "Home",
+        "stats": "Stats",
+        "profile": "Profile",
+        "noTransactions": "No transactions yet"
+    },
+    "add": {
+        "addIncome": "Add Income",
+        "addExpense": "Add Expense",
+        "favorites": "Favorites",
+        "new": "New",
+        "addToFavorites": "Add to Favorites",
+        "noFavorites": "No favorites yet",
+        "excludeFromStats": "Exclude from monthly stats"
+    },
+    "categories": {
+        "title": "Categories",
+        "addCategory": "Add Category",
+        "categoryName": "Category name",
+        "selectIcon": "Select Icon"
+    }
+}
