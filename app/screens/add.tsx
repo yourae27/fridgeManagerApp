@@ -7,8 +7,8 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { useTransactionContext } from '../context/TransactionContext';
 import { Category } from './categories';
 import { useCategoryContext } from '../context/CategoryContext';
-import DatePicker from 'react-native-date-picker';
 import i18n from '../i18n';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // 定义收藏记录的类型
 export interface FavoriteRecord {
@@ -39,7 +39,7 @@ const Add = () => {
 
   // 从路由参数中获取编辑数据和初始标签
   const { routes } = useRootNavigationState();
-  const params = routes[1].params;
+  const params = routes[1].params as any;
   const isEditing = params?.mode === 'edit';
 
   // 设置初始标签
@@ -120,26 +120,6 @@ const Add = () => {
     }
   };
 
-  // const renderDatePicker = () => {
-  //   if (!showDatePicker) return null;
-
-  //   return (
-  //     // <DatePicker
-  //     //   modal
-  //     //   open={showDatePicker}
-  //     //   date={selectedDate}
-  //     //   onConfirm={(date) => {
-  //     //     setShowDatePicker(false)
-  //     //     setSelectedDate(date)
-  //     //   }}
-  //     //   onCancel={() => {
-  //     //     setShowDatePicker(false)
-  //     //   }}
-  //     // />
-  //     <DatePicker date={selectedDate} onDateChange={setSelectedDate} />
-  //   );
-  // };
-
   // 修改保存函数，使用正确的日期格式
   const saveTransaction = async () => {
     const category = categories.find(c => c.id === selectedCategory);
@@ -204,6 +184,16 @@ const Add = () => {
 
   }, []);
 
+  // 添加日期变更处理函数
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (selectedDate) {
+      setSelectedDate(selectedDate);
+    }
+    if (showDatePicker && Platform.OS === 'ios') {
+      setShowDatePicker(false);
+    }
+  };
+
   const renderCreateNew = () => (
     <ScrollView style={styles.scrollView}>
       {/* 金额输入 */}
@@ -250,49 +240,25 @@ const Add = () => {
       </View>
 
       {/* 日期选择 */}
-      {/* <Text style={styles.sectionTitle}>Date</Text>
+      <Text style={styles.sectionTitle}>Date</Text>
       <TouchableOpacity
         style={styles.dateButton}
-        onPress={() => setShowDatePicker(true)}
+        onPress={() => setShowDatePicker(!showDatePicker)}
       >
         <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
         <Ionicons name="calendar-outline" size={20} color="#666" />
-      </TouchableOpacity> */}
+      </TouchableOpacity>
 
-      {/* <DatePicker date={selectedDate} onDateChange={setSelectedDate} /> */}
-      <>
-        <Button title="Open" onPress={() => setShowDatePicker(true)} />
-        <DatePicker
-          modal
-          open={showDatePicker}
-          date={selectedDate}
-          onConfirm={(date) => {
-            setShowDatePicker(false)
-            setSelectedDate(date)
-          }}
-          onCancel={() => {
-            setShowDatePicker(false)
-          }}
+      {/* 日期选择器 */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+          onChange={onDateChange}
+          maximumDate={new Date()}
         />
-      </>
-
-      {/* iOS 显示内联日期选择器 */}
-      {/* {Platform.OS === 'ios' && showDatePicker && (
-        <View style={styles.datePickerContainer}>
-          {renderDatePicker()}
-          <View style={styles.datePickerButtons}>
-            <TouchableOpacity
-              style={styles.datePickerButton}
-              onPress={() => setShowDatePicker(false)}
-            >
-              <Text style={styles.datePickerButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )} */}
-
-      {/* Android 显示模态日期选择器 */}
-      {/* {Platform.OS === 'android' && showDatePicker && renderDatePicker()} */}
+      )}
 
       {/* 备注输入 */}
       <Text style={styles.sectionTitle}>{i18n.t('common.note')}</Text>
@@ -399,9 +365,6 @@ const Add = () => {
   return (
     <View style={styles.container} onTouchStart={() => {
       closeAllSwipeables();
-      if (showDatePicker && Platform.OS === 'ios') {
-        setShowDatePicker(false);
-      }
     }}>
       {/* 收入支出切换 */}
       <View style={styles.tabs}>
