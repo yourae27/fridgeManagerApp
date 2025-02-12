@@ -25,12 +25,20 @@ const HomeList = () => {
   const [transactions, setTransactions] = useState<GroupedTransactions>({});
   const { refreshTrigger } = useTransactionContext();
   const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
+  const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense'>('all');
 
   const loadTransactions = async () => {
     try {
       const data = await getTransactions();
+
+      // 根据过滤条件筛选数据
+      const filteredData = data.filter(transaction => {
+        if (activeFilter === 'all') return true;
+        return transaction.type === activeFilter;
+      });
+
       // 按日期分组
-      const grouped = data.reduce((groups: GroupedTransactions, transaction) => {
+      const grouped = filteredData.reduce((groups: GroupedTransactions, transaction) => {
         const date = transaction.date;
         if (!groups[date]) {
           groups[date] = [];
@@ -54,7 +62,7 @@ const HomeList = () => {
 
   useEffect(() => {
     loadTransactions();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, activeFilter]);
 
   // 关闭所有打开的左滑菜单
   const closeAllSwipeables = () => {
@@ -153,17 +161,37 @@ const HomeList = () => {
       </View>
 
       <View style={styles.transactionSection}>
-        <Text style={styles.sectionTitle}>近期交易</Text>
-        <View style={styles.filters}>
-          <TouchableOpacity style={styles.activeFilter}>
-            <Text style={styles.activeFilterText}>全部</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={styles.filterText}>{i18n.t('common.income')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={styles.filterText}>{i18n.t('common.expense')}</Text>
-          </TouchableOpacity>
+        <View style={styles.transactionHeader}>
+          <Text style={styles.sectionTitle}>近期交易</Text>
+          <View style={styles.filters}>
+            <TouchableOpacity
+              style={[styles.filter, activeFilter === 'all' && styles.activeFilter]}
+              onPress={() => setActiveFilter('all')}
+            >
+              <Text style={[
+                styles.filterText,
+                activeFilter === 'all' && styles.activeFilterText
+              ]}>全部</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filter, activeFilter === 'income' && styles.activeFilter]}
+              onPress={() => setActiveFilter('income')}
+            >
+              <Text style={[
+                styles.filterText,
+                activeFilter === 'income' && styles.activeFilterText
+              ]}>{i18n.t('common.income')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filter, activeFilter === 'expense' && styles.activeFilter]}
+              onPress={() => setActiveFilter('expense')}
+            >
+              <Text style={[
+                styles.filterText,
+                activeFilter === 'expense' && styles.activeFilterText
+              ]}>{i18n.t('common.expense')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -189,17 +217,24 @@ const HomeList = () => {
                 >
                   <View style={styles.transactionItem}>
                     <View style={styles.transactionLeft}>
-                      <View style={styles.transactionIcon}>
+                      <View style={[
+                        styles.transactionIcon,
+                        { backgroundColor: transaction.type === 'income' ? '#FFF8E7' : '#FFF1F1' }
+                      ]}>
                         <Text style={styles.iconText}>{transaction.categoryIcon}</Text>
                       </View>
-                      <View style={styles.transactionInfo}>
+                      <View style={[styles.transactionInfo, !transaction.note && styles.transactionInfoCenter]}>
                         <Text style={styles.transactionType}>{transaction.category}</Text>
-                        <Text style={styles.transactionNote}>{transaction.note}</Text>
+                        {transaction.note && (
+                          <Text style={styles.transactionDate}>
+                            {transaction.note}
+                          </Text>
+                        )}
                       </View>
                     </View>
                     <Text style={[
                       styles.transactionAmount,
-                      { color: transaction.type === 'income' ? '#4CAF50' : '#dc4446' }
+                      { color: transaction.type === 'income' ? '#FF9A2E' : '#dc4446' }
                     ]}>
                       {transaction.type === 'income' ? '+' : '-'}¥{transaction.amount.toFixed(2)}
                     </Text>
@@ -269,8 +304,13 @@ const styles = StyleSheet.create({
   transactionSection: {
     backgroundColor: 'white',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     flex: 1,
+  },
+  transactionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 18,
@@ -279,20 +319,26 @@ const styles = StyleSheet.create({
   },
   filters: {
     flexDirection: 'row',
-    gap: 16,
+    justifyContent: 'flex-end',
+    gap: 2,
     marginBottom: 16,
+    padding: 6,
+  },
+  filter: {
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    borderRadius: 20,
   },
   activeFilter: {
-    backgroundColor: '#fff1f1',
-    padding: 4,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-  },
-  activeFilterText: {
-    color: '#dc4446',
+    backgroundColor: '#FFF1F1',
   },
   filterText: {
     color: '#666',
+    fontSize: 14,
+  },
+  activeFilterText: {
+    color: '#dc4446',
+    fontWeight: '500',
   },
   transactionList: {
     flex: 1,
@@ -301,18 +347,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    padding: 16,
     backgroundColor: 'white',
     borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 12,
+    borderColor: '#FFCCCC',
+    borderWidth: 1,
   },
   transactionLeft: {
     flexDirection: 'row',
@@ -320,10 +360,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   transactionIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#fff1f1',
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -333,16 +372,21 @@ const styles = StyleSheet.create({
   transactionInfo: {
     gap: 4,
   },
+  transactionInfoCenter: {
+    justifyContent: 'center',
+  },
   transactionType: {
+    fontSize: 16,
     fontWeight: '500',
+    color: '#333',
   },
   transactionDate: {
     color: '#999',
-    fontSize: 14,
+    fontSize: 13,
   },
   transactionAmount: {
-    fontWeight: '500',
-    fontSize: 16,
+    fontWeight: '600',
+    fontSize: 17,
   },
   navbar: {
     flexDirection: 'row',
@@ -409,8 +453,8 @@ const styles = StyleSheet.create({
   dateHeader: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    marginBottom: 12,
+    marginTop: 8,
   },
   actionButtons: {
     flexDirection: 'row',
