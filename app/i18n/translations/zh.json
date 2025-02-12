@@ -12,7 +12,8 @@
         "category": "分类",
         "amount": "金额",
         "note": "备注",
-        "date": "日期"
+        "date": "日期",
+        "member": "成员"
     },
     "home": {
         "title": "首页",
@@ -26,8 +27,7 @@
         "favorites": "收藏",
         "new": "新建",
         "addToFavorites": "添加到收藏",
-        "noFavorites": "暂无收藏",
-        "excludeFromStats": "不计入月度收支"
+        "noFavorites": "暂无收藏"
     },
     "categories": {
         "title": "分类管理",

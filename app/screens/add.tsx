@@ -35,19 +35,46 @@ const Add = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const { refreshTrigger } = useCategoryContext();
-  const [excludeFromStats, setExcludeFromStats] = useState(false);
+  const [selectedMember, setSelectedMember] = useState('我');
+  const members = ['我', '配偶', '子女', '父母']; // 可以根据需要修改成员列表
 
-  // 从路由参数中获取编辑数据和初始标签
+  // 从路由参数中获取编辑数据
   const { routes } = useRootNavigationState();
   const params = routes[1].params as any;
   const isEditing = params?.mode === 'edit';
 
   // 设置初始标签
   useEffect(() => {
-    if (params?.initialTab) {
+    if (params?.mode === 'edit') {
+      // 设置初始标签
+      setActiveTab(params.type as 'income' | 'expense');
+      // 设置金额
+      setAmount(params.amount || '0.00');
+      // 设置备注
+      setNote(params.note || '');
+      // 设置日期
+      if (params.date) {
+        setSelectedDate(new Date(params.date));
+      }
+      // 设置类别
+      if (params.category) {
+        // 需要等待类别加载完成后再设置
+        const findAndSetCategory = async () => {
+          const cats = await getCategories(params.type);
+          const cat = cats.find(c => c.name === params.category);
+          if (cat) {
+            setSelectedCategory(cat.id);
+          }
+        };
+        findAndSetCategory();
+      }
+      if (params.member) {
+        setSelectedMember(params.member);
+      }
+    } else if (params?.initialTab) {
       setActiveTab(params.initialTab as 'income' | 'expense');
     }
-  }, [params?.initialTab]);
+  }, [params]);
 
   // 加载类别数据
   const loadCategories = async () => {
@@ -142,7 +169,7 @@ const Add = () => {
           categoryIcon: category.icon,
           note,
           date: formattedDate,
-          excludeFromStats,
+          member: selectedMember,
         });
       } else {
         await addTransaction({
@@ -152,7 +179,7 @@ const Add = () => {
           categoryIcon: category.icon,
           note,
           date: formattedDate,
-          excludeFromStats,
+          member: selectedMember,
         });
       }
       triggerRefresh();
@@ -270,18 +297,25 @@ const Add = () => {
         multiline
       />
 
-      {/* 不计入月度收支选项 */}
-      <TouchableOpacity
-        style={styles.excludeOption}
-        onPress={() => setExcludeFromStats(!excludeFromStats)}
-      >
-        <View style={styles.excludeCheckbox}>
-          {excludeFromStats && (
-            <Ionicons name="checkmark" size={16} color="#dc4446" />
-          )}
-        </View>
-        <Text style={styles.excludeText}>{i18n.t('add.excludeFromStats')}</Text>
-      </TouchableOpacity>
+      {/* 成员选择 */}
+      <Text style={styles.sectionTitle}>{i18n.t('common.member')}</Text>
+      <View style={styles.memberGrid}>
+        {members.map(member => (
+          <TouchableOpacity
+            key={member}
+            style={[
+              styles.memberItem,
+              selectedMember === member && styles.selectedMember
+            ]}
+            onPress={() => setSelectedMember(member)}
+          >
+            <Text style={[
+              styles.memberText,
+              selectedMember === member && styles.selectedMemberText
+            ]}>{member}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* 按钮组 */}
       <View style={styles.buttonGroup}>
@@ -672,6 +706,32 @@ const styles = StyleSheet.create({
   excludeText: {
     fontSize: 16,
     color: '#333',
+  },
+  memberGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  memberItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  selectedMember: {
+    backgroundColor: '#fff1f1',
+    borderColor: '#dc4446',
+  },
+  memberText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedMemberText: {
+    color: '#dc4446',
+    fontWeight: '500',
   },
 });
 

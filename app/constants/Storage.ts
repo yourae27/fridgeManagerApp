@@ -24,7 +24,7 @@ export const initDatabase = async () => {
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
                 date TEXT NOT NULL,
-                exclude_from_stats BOOLEAN DEFAULT 0,
+                member TEXT NOT NULL DEFAULT '我',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
@@ -73,12 +73,12 @@ export const addTransaction = async (data: {
     categoryIcon: string;
     note?: string;
     date: string;
-    excludeFromStats?: boolean;
+    member?: string;
 }) => {
     const db = await getDB();
     const statement = await db.prepareAsync(`
         INSERT INTO transactions (
-            type, amount, category, categoryIcon, note, date, exclude_from_stats
+            type, amount, category, categoryIcon, note, date, member
         ) VALUES (?, ?, ?, ?, ?, ?, ?);
     `);
     try {
@@ -89,7 +89,7 @@ export const addTransaction = async (data: {
             data.categoryIcon,
             data.note || '',
             data.date,
-            data.excludeFromStats ? 1 : 0
+            data.member || '我'
         ]);
     } finally {
         await statement.finalizeAsync();
@@ -209,7 +209,7 @@ export const updateTransaction = async (id: number, data: {
     categoryIcon?: string;
     note?: string;
     date?: string;
-    excludeFromStats?: boolean;
+    member?: string;
 }) => {
     const db = await getDB();
     const updates = Object.entries(data)

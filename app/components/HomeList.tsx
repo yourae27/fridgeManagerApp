@@ -90,10 +90,12 @@ const HomeList = () => {
                 mode: 'edit',
                 id: transaction.id,
                 type: transaction.type,
-                amount: transaction.amount,
+                amount: Math.abs(transaction.amount).toString(),
                 category: transaction.category,
-                note: transaction.note,
+                categoryIcon: transaction.categoryIcon,
+                note: transaction.note || '',
                 date: transaction.date,
+                initialTab: transaction.type,
               }
             });
           }}

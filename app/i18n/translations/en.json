@@ -12,7 +12,8 @@
         "category": "Category",
         "amount": "Amount",
         "note": "Note",
-        "date": "Date"
+        "date": "Date",
+        "member": "Member"
     },
     "home": {
         "title": "Home",
@@ -26,8 +27,7 @@
         "favorites": "Favorites",
         "new": "New",
         "addToFavorites": "Add to Favorites",
-        "noFavorites": "No favorites yet",
-        "excludeFromStats": "Exclude from monthly stats"
+        "noFavorites": "No favorites yet"
     },
     "categories": {
         "title": "Categories",
