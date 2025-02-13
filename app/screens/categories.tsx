@@ -46,7 +46,12 @@ const Categories = () => {
 
     const handleAddCategory = async () => {
         if (!newCategoryName.trim()) {
-            Alert.alert('Error', 'Please enter a category name');
+            Alert.alert('提示', '请输入分类名称');
+            return;
+        }
+
+        if (newCategoryName.length > 10) {
+            Alert.alert('提示', '分类名称不能超过10个字符');
             return;
         }
 
@@ -63,7 +68,7 @@ const Categories = () => {
             triggerRefresh();
         } catch (error) {
             console.error('Failed to add category:', error);
-            Alert.alert('Error', 'Failed to add category');
+            Alert.alert('错误', '添加分类失败');
         }
     };
 

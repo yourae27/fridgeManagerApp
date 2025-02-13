@@ -254,6 +254,11 @@ const Add = () => {
     }
   };
 
+  const renderCategoryName = (name: string) => {
+    if (name.length <= 4) return name;
+    return name.slice(0, 4) + '...';
+  };
+
   const renderCreateNew = () => (
     <ScrollView style={styles.scrollView}>
       {/* 金额输入 */}
@@ -282,21 +287,26 @@ const Add = () => {
             onPress={() => updateCurrentState('selectedCategory', category.id)}
           >
             <Text style={styles.categoryIcon}>{category.icon}</Text>
-            <Text style={styles.categoryName}>{category.name}</Text>
+            <Text
+              style={styles.categoryName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {renderCategoryName(category.name)}
+            </Text>
           </TouchableOpacity>
         ))}
-        {/* 添加 Other 按钮 */}
         <TouchableOpacity
           style={[styles.categoryItem, styles.otherCategoryItem]}
-          onPress={() => {
-            router.push({
-              pathname: '/screens/categories',
-              params: { initialTab: activeTab }
-            });
-          }}
+          onPress={() => router.push({
+            pathname: '/screens/categories',
+            params: { initialTab: activeTab }
+          })}
         >
-          <Text style={styles.categoryIcon}>➕</Text>
-          <Text style={styles.categoryName}>Other</Text>
+          <Ionicons name="add" size={24} color="#dc4446" />
+          <Text style={[styles.categoryName, { color: '#dc4446' }]}>
+            {i18n.t('common.add')}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -582,17 +592,16 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
+    gap: 4,
+    marginBottom: 20,
   },
   categoryItem: {
-    width: '23%',
+    width: '24%',
     aspectRatio: 1,
-    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
+    padding: 15,
   },
   otherCategoryItem: {
     backgroundColor: '#fff1f1',
@@ -613,6 +622,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+    width: '100%',
+    paddingHorizontal: 2,
   },
   dateButton: {
     flexDirection: 'row',
@@ -721,10 +732,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden',
   },
-  // datePickerIOS: {
-  //   height: 300,
-  //   backgroundColor: 'white',
-  // },
   datePickerButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

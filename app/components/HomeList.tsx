@@ -23,15 +23,66 @@ interface GroupedTransactions {
   [date: string]: Transaction[];
 }
 
+interface DailyTotal {
+  income: number;
+  expense: number;
+}
+
+interface MonthlyTotal {
+  income: number;
+  expense: number;
+}
+
 const HomeList = () => {
   const [transactions, setTransactions] = useState<GroupedTransactions>({});
   const { refreshTrigger } = useTransactionContext();
   const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
   const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [monthlyTotal, setMonthlyTotal] = useState<MonthlyTotal>({ income: 0, expense: 0 });
+
+  // 计算每日总计
+  const calculateDailyTotal = (transactions: Transaction[]): DailyTotal => {
+    return transactions.reduce((total, transaction) => {
+      if (transaction.refunded) return total;
+
+      if (transaction.type === 'income') {
+        total.income += Math.abs(transaction.amount);
+      } else {
+        total.expense += Math.abs(transaction.amount);
+      }
+      return total;
+    }, { income: 0, expense: 0 });
+  };
+
+  // 计算月度总计
+  const calculateMonthlyTotal = (data: Transaction[]) => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+
+    const total = data.reduce((acc, transaction) => {
+      const transactionDate = new Date(transaction.date);
+      if (
+        transactionDate.getMonth() === currentMonth &&
+        transactionDate.getFullYear() === currentYear &&
+        !transaction.refunded
+      ) {
+        if (transaction.type === 'income') {
+          acc.income += Math.abs(transaction.amount);
+        } else {
+          acc.expense += Math.abs(transaction.amount);
+        }
+      }
+      return acc;
+    }, { income: 0, expense: 0 });
+
+    setMonthlyTotal(total);
+  };
 
   const loadTransactions = async () => {
     try {
       const data = await getTransactions();
+      calculateMonthlyTotal(data);
 
       // 根据过滤条件筛选数据
       const filteredData = data.filter(transaction => {
@@ -214,6 +265,25 @@ const HomeList = () => {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.monthlyStatsCard}>
+        <Text style={styles.monthlyStatsTitle}>本月收支</Text>
+        <View style={styles.monthlyStatsContent}>
+          <View style={styles.monthlyStatsItem}>
+            <Text style={styles.monthlyStatsLabel}>收入</Text>
+            <Text style={[styles.monthlyStatsAmount, { color: '#FF9A2E' }]}>
+              ¥{monthlyTotal.income.toFixed(2)}
+            </Text>
+          </View>
+          <View style={styles.monthlyStatsDivider} />
+          <View style={styles.monthlyStatsItem}>
+            <Text style={styles.monthlyStatsLabel}>支出</Text>
+            <Text style={[styles.monthlyStatsAmount, { color: '#dc4446' }]}>
+              ¥{monthlyTotal.expense.toFixed(2)}
+            </Text>
+          </View>
+        </View>
+      </View>
+
       <View style={styles.transactionSection}>
         <View style={styles.transactionHeader}>
           <Text style={styles.sectionTitle}>近期交易</Text>
@@ -254,7 +324,21 @@ const HomeList = () => {
         >
           {Object.entries(transactions).map(([date, items]) => (
             <View key={date} style={styles.dateGroup}>
-              <Text style={styles.dateHeader}>{formatDate(date)}</Text>
+              <View style={styles.dateHeader}>
+                <Text style={styles.dateText}>{formatDate(date)}</Text>
+                <View style={styles.dailyTotal}>
+                  {calculateDailyTotal(items).income > 0 && (
+                    <Text style={[styles.dailyTotalText, { color: '#FF9A2E' }]}>
+                      收入 ¥{calculateDailyTotal(items).income.toFixed(2)}
+                    </Text>
+                  )}
+                  {calculateDailyTotal(items).expense > 0 && (
+                    <Text style={[styles.dailyTotalText, { color: '#dc4446' }]}>
+                      支出 ¥{calculateDailyTotal(items).expense.toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+              </View>
               {items.map(transaction => (
                 <Swipeable
                   key={transaction.id}
@@ -482,10 +566,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   dateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dateText: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 12,
-    marginTop: 8,
+  },
+  dailyTotal: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dailyTotalText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -529,6 +625,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  monthlyStatsCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  monthlyStatsTitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 12,
+  },
+  monthlyStatsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  monthlyStatsItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  monthlyStatsDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#eee',
+    marginHorizontal: 16,
+  },
+  monthlyStatsLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  monthlyStatsAmount: {
+    fontSize: 20,
+    fontWeight: '600',
   },
 });
 
