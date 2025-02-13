@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Platform, Button } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useRootNavigationState } from 'expo-router';
-import { addFavorite, addTransaction, getFavorites, deleteFavorite, updateTransaction, getCategories } from '../constants/Storage';
+import { addFavorite, addTransaction, getFavorites, deleteFavorite, updateTransaction, getCategories, getMembers } from '../constants/Storage';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTransactionContext } from '../context/TransactionContext';
 import { Category } from './categories';
@@ -62,7 +62,7 @@ const Add = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const { refreshTrigger } = useCategoryContext();
-  const members = ['我', '配偶', '子女', '父母', '其他']; // 可以根据需要修改成员列表
+  const [members, setMembers] = useState<string[]>([]);
 
   // 从路由参数中获取编辑数据
   const { routes } = useRootNavigationState();
@@ -344,7 +344,7 @@ const Add = () => {
       {/* 成员选择 */}
       <Text style={styles.sectionTitle}>{i18n.t('common.member')}</Text>
       <View style={styles.memberGrid}>
-        {members.map(member => (
+        {members.map((member) => (
           <TouchableOpacity
             key={member}
             style={[
@@ -457,6 +457,21 @@ const Add = () => {
       )}
     </ScrollView>
   );
+
+  // 加载成员数据
+  const loadMembers = async () => {
+    try {
+      const data = await getMembers();
+      setMembers(data.map(member => member.name));
+    } catch (error) {
+      console.error('Failed to load members:', error);
+    }
+  };
+
+  // 在组件加载时获取成员列表
+  useEffect(() => {
+    loadMembers();
+  }, []);
 
   return (
     <View style={styles.container} onTouchStart={() => {

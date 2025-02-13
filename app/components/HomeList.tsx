@@ -221,11 +221,14 @@ const HomeList = () => {
         <View style={styles.transactionInfo}>
           <View style={styles.transactionTitleRow}>
             <Text style={styles.transactionType}>{transaction.category}</Text>
-            {!!transaction.refunded && (
-              <View style={styles.refundedBadge}>
-                <Text style={styles.refundedText}>已退款</Text>
-              </View>
-            )}
+            <View style={styles.transactionTags}>
+              <Text style={styles.memberTag}>{transaction.member}</Text>
+              {!!transaction.refunded && (
+                <View style={styles.refundedBadge}>
+                  <Text style={styles.refundedText}>已退款</Text>
+                </View>
+              )}
+            </View>
           </View>
           {transaction.note && (
             <Text style={styles.transactionNote}>{transaction.note}</Text>
@@ -236,7 +239,7 @@ const HomeList = () => {
         styles.transactionAmount,
         { color: transaction.type === 'income' ? '#FF9A2E' : '#dc4446' }
       ]}>
-        {transaction.type === 'income' ? '+' : '-'}¥{transaction.amount.toFixed(2)}
+        {transaction.type === 'income' ? '+' : '-'}¥{Math.abs(transaction.amount).toFixed(2)}
       </Text>
     </View>
   );
@@ -659,6 +662,19 @@ const styles = StyleSheet.create({
   monthlyStatsAmount: {
     fontSize: 20,
     fontWeight: '600',
+  },
+  transactionTags: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  memberTag: {
+    fontSize: 12,
+    color: '#666',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 4,
   },
 });
 

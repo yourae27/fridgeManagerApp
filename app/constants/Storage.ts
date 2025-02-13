@@ -56,6 +56,13 @@ export const initDatabase = async () => {
                 icon TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                budget REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         `);
         // INSERT OR IGNORE INTO categories (type, name, icon) VALUES
         // ('expense', 'Food', '🍽️'),
@@ -64,6 +71,9 @@ export const initDatabase = async () => {
         // ('income', 'Salary', '💼'),
         // ('income', 'Bonus', '🎁'),
         // ('income', 'Investment', '📈');
+        // await db.execAsync(`
+        //     INSERT OR IGNORE INTO members (name) VALUES ('我');
+        // `);
     });
 };
 
@@ -269,6 +279,61 @@ export const addCategory = async (data: {
 export const deleteCategory = async (id: number) => {
     const db = await getDB();
     const statement = await db.prepareAsync('DELETE FROM categories WHERE id = ?;');
+    try {
+        return await statement.executeAsync([id]);
+    } finally {
+        await statement.finalizeAsync();
+    }
+};
+
+export const getMembers = async () => {
+    const db = await getDB();
+    return await db.getAllAsync<{
+        id: number;
+        name: string;
+        budget: number | null;
+        created_at: string;
+    }>('SELECT * FROM members ORDER BY created_at ASC;');
+};
+
+export const addMember = async (data: { name: string; budget?: number }) => {
+    const db = await getDB();
+    const statement = await db.prepareAsync(
+        'INSERT INTO members (name, budget) VALUES (?, ?);'
+    );
+    try {
+        return await statement.executeAsync([data.name, data.budget || null]);
+    } finally {
+        await statement.finalizeAsync();
+    }
+};
+
+export const updateMember = async (id: number, data: { name?: string; budget?: number | null }) => {
+    const db = await getDB();
+    const updates = Object.entries(data)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, _]) => `${key} = ?`)
+        .join(', ');
+
+    const values = Object.entries(data)
+        .filter(([_, value]) => value !== undefined)
+        .map(([_, value]) => value);
+
+    const statement = await db.prepareAsync(`
+        UPDATE members 
+        SET ${updates}
+        WHERE id = ?;
+    `);
+    try {
+        return await statement.executeAsync([...values, id]);
+    } finally {
+        await statement.finalizeAsync();
+    }
+};
+
+export const deleteMember = async (id: number) => {
+    const db = await getDB();
+    const statement = await db.prepareAsync('DELETE FROM members WHERE id = ?;');
     try {
         return await statement.executeAsync([id]);
     } finally {

@@ -42,6 +42,13 @@ export default function RootLayout() {
                 headerTintColor: '#333',
               }}
             />
+            <Stack.Screen
+              name="screens/budget"
+              options={{
+                title: i18n.t('profile.memberBudget'),
+                headerTintColor: '#333',
+              }}
+            />
           </Stack>
 
         </CategoryProvider>
