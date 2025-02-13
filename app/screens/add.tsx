@@ -24,9 +24,34 @@ export interface FavoriteRecord {
 const Add = () => {
   const [activeTab, setActiveTab] = useState<'income' | 'expense'>('expense');
   const [activeMode, setActiveMode] = useState<'new' | 'favorites'>('new');
-  const [amount, setAmount] = useState('0.00');
-  const [selectedCategory, setSelectedCategory] = useState(0);
-  const [note, setNote] = useState('');
+
+  // 分离收入和支出的状态
+  const [incomeState, setIncomeState] = useState({
+    amount: '0.00',
+    selectedCategory: 0,
+    note: '',
+    member: '我',
+  });
+
+  const [expenseState, setExpenseState] = useState({
+    amount: '0.00',
+    selectedCategory: 0,
+    note: '',
+    member: '我',
+  });
+
+  // 获取当前激活标签的状态和设置函数
+  const currentState = activeTab === 'income' ? incomeState : expenseState;
+  const setCurrentState = activeTab === 'income' ? setIncomeState : setExpenseState;
+
+  // 更新状态的辅助函数
+  const updateCurrentState = (field: string, value: any) => {
+    setCurrentState(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // 收藏记录状态
   const [favorites, setFavorites] = useState<FavoriteRecord[]>([]);
   const { triggerRefresh } = useTransactionContext();
@@ -35,8 +60,7 @@ const Add = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const { refreshTrigger } = useCategoryContext();
-  const [selectedMember, setSelectedMember] = useState('我');
-  const members = ['我', '配偶', '子女', '父母']; // 可以根据需要修改成员列表
+  const members = ['我', '配偶', '子女', '父母', '其他']; // 可以根据需要修改成员列表
 
   // 从路由参数中获取编辑数据
   const { routes } = useRootNavigationState();
@@ -46,30 +70,31 @@ const Add = () => {
   // 设置初始标签
   useEffect(() => {
     if (params?.mode === 'edit') {
-      // 设置初始标签
+      const targetState = params.type === 'income' ? setIncomeState : setExpenseState;
+      targetState({
+        amount: params.amount || '0.00',
+        selectedCategory: 0, // 将在类别加载后更新
+        note: params.note || '',
+        member: params.member || '我',
+      });
       setActiveTab(params.type as 'income' | 'expense');
-      // 设置金额
-      setAmount(params.amount || '0.00');
-      // 设置备注
-      setNote(params.note || '');
-      // 设置日期
+
       if (params.date) {
         setSelectedDate(new Date(params.date));
       }
-      // 设置类别
+
       if (params.category) {
-        // 需要等待类别加载完成后再设置
         const findAndSetCategory = async () => {
           const cats = await getCategories(params.type);
           const cat = cats.find(c => c.name === params.category);
           if (cat) {
-            setSelectedCategory(cat.id);
+            targetState(prev => ({
+              ...prev,
+              selectedCategory: cat.id
+            }));
           }
         };
         findAndSetCategory();
-      }
-      if (params.member) {
-        setSelectedMember(params.member);
       }
     } else if (params?.initialTab) {
       setActiveTab(params.initialTab as 'income' | 'expense');
@@ -108,16 +133,16 @@ const Add = () => {
 
   // 添加到收藏
   const addToFavorites = async () => {
-    const category = categories.find(c => c.id === selectedCategory);
+    const category = categories.find(c => c.id === currentState.selectedCategory);
     if (!category) return;
 
     try {
       await addFavorite({
         type: activeTab,
-        amount: parseFloat(amount),
+        amount: parseFloat(currentState.amount),
         category: category.name,
         categoryIcon: category.icon,
-        note,
+        note: currentState.note,
         date: new Date().toLocaleDateString(),
       });
 
@@ -149,11 +174,11 @@ const Add = () => {
 
   // 修改保存函数，使用正确的日期格式
   const saveTransaction = async () => {
-    const category = categories.find(c => c.id === selectedCategory);
+    const category = categories.find(c => c.id === currentState.selectedCategory);
     if (!category) return;
 
     try {
-      const transactionAmount = parseFloat(amount);
+      const transactionAmount = parseFloat(currentState.amount);
       const finalAmount = activeTab === 'income' ?
         Math.abs(transactionAmount) :
         -Math.abs(transactionAmount);
@@ -167,9 +192,9 @@ const Add = () => {
           amount: finalAmount,
           category: category.name,
           categoryIcon: category.icon,
-          note,
+          note: currentState.note,
           date: formattedDate,
-          member: selectedMember,
+          member: currentState.member,
         });
       } else {
         await addTransaction({
@@ -177,9 +202,9 @@ const Add = () => {
           amount: finalAmount,
           category: category.name,
           categoryIcon: category.icon,
-          note,
+          note: currentState.note,
           date: formattedDate,
-          member: selectedMember,
+          member: currentState.member,
         });
       }
       triggerRefresh();
@@ -228,10 +253,11 @@ const Add = () => {
         <Text style={styles.currencySymbol}>¥</Text>
         <TextInput
           style={styles.amountInput}
-          value={amount}
-          onChangeText={setAmount}
+          value={currentState.amount}
+          onChangeText={(value) => updateCurrentState('amount', value)}
           keyboardType="decimal-pad"
-          onFocus={() => amount === '0.00' && setAmount('')}
+          onFocus={() => currentState.amount === '0.00' &&
+            updateCurrentState('amount', '')}
         />
       </View>
 
@@ -243,9 +269,9 @@ const Add = () => {
             key={category.id}
             style={[
               styles.categoryItem,
-              selectedCategory === category.id && styles.selectedCategory
+              currentState.selectedCategory === category.id && styles.selectedCategory
             ]}
-            onPress={() => setSelectedCategory(category.id)}
+            onPress={() => updateCurrentState('selectedCategory', category.id)}
           >
             <Text style={styles.categoryIcon}>{category.icon}</Text>
             <Text style={styles.categoryName}>{category.name}</Text>
@@ -292,8 +318,8 @@ const Add = () => {
       <TextInput
         style={styles.noteInput}
         placeholder={i18n.t('common.note')}
-        value={note}
-        onChangeText={setNote}
+        value={currentState.note}
+        onChangeText={(value) => updateCurrentState('note', value)}
         multiline
       />
 
@@ -305,13 +331,13 @@ const Add = () => {
             key={member}
             style={[
               styles.memberItem,
-              selectedMember === member && styles.selectedMember
+              currentState.member === member && styles.selectedMember
             ]}
-            onPress={() => setSelectedMember(member)}
+            onPress={() => updateCurrentState('member', member)}
           >
             <Text style={[
               styles.memberText,
-              selectedMember === member && styles.selectedMemberText
+              currentState.member === member && styles.selectedMemberText
             ]}>{member}</Text>
           </TouchableOpacity>
         ))}
@@ -367,9 +393,9 @@ const Add = () => {
             style={styles.favoriteItem}
             onPress={() => {
               setActiveMode('new');
-              setAmount(favorite.amount.toString());
-              setSelectedCategory(categories.find(c => c.name === favorite.category)?.id || 0);
-              setNote(favorite.note);
+              updateCurrentState('amount', favorite.amount.toString());
+              updateCurrentState('selectedCategory', categories.find(c => c.name === favorite.category)?.id || 0);
+              updateCurrentState('note', favorite.note);
             }}
           >
             <View style={styles.favoriteLeft}>
@@ -381,9 +407,9 @@ const Add = () => {
             </View>
             <Text style={[
               styles.favoriteAmount,
-              { color: favorite.amount > 0 ? '#4CAF50' : '#dc4446' }
+              { color: activeTab === 'income' ? '#4CAF50' : '#dc4446' }
             ]}>
-              {favorite.amount > 0 ? '+' : '-'}¥{favorite.amount}
+              {activeTab === 'income' ? '+' : '-'}¥{favorite.amount}
             </Text>
           </TouchableOpacity>
         </Swipeable>
