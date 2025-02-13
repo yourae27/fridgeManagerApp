@@ -34,5 +34,17 @@
         "addCategory": "Add Category",
         "categoryName": "Category name",
         "selectIcon": "Select Icon"
+    },
+    "profile": {
+        "memberBudget": "Member Management And Budget",
+        "exportExcel": "Export Excel",
+        "manageCategories": "Manage Categories",
+        "manageTags": "Manage Tags",
+        "settings": "Settings",
+        "budget": {
+            "title": "Budget Settings",
+            "monthly": "Monthly Budget",
+            "daily": "Daily Budget"
+        }
     }
 }

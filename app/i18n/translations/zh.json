@@ -34,5 +34,17 @@
         "addCategory": "添加分类",
         "categoryName": "分类名称",
         "selectIcon": "选择图标"
+    },
+    "profile": {
+        "memberBudget": "成员管理与预算",
+        "exportExcel": "导出Excel",
+        "manageCategories": "管理分类",
+        "manageTags": "管理标签",
+        "settings": "设置",
+        "budget": {
+            "title": "预算设置",
+            "monthly": "月度预算",
+            "daily": "日均预算"
+        }
     }
 }

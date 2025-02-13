@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TransactionProvider } from './context/TransactionContext';
 import { CategoryProvider } from './context/CategoryContext';
 import './i18n'; // 导入 i18n 配置
+import i18n from './i18n'; // 导入 i18n 配置
 
 export default function RootLayout() {
   useEffect(() => {
@@ -34,7 +35,13 @@ export default function RootLayout() {
                 headerTintColor: '#333',
               }}
             />
-            {/* <Stack.Screen name="profile" /> */}
+            <Stack.Screen
+              name="screens/profile"
+              options={{
+                title: 'profile',
+                headerTintColor: '#333',
+              }}
+            />
           </Stack>
 
         </CategoryProvider>

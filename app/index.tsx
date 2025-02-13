@@ -5,6 +5,7 @@ import { Link, router } from 'expo-router';
 import Stats from './components/Stats';
 import HomeList from './components/HomeList';
 import i18n from './i18n';
+import Profile from './screens/profile';
 
 const App = () => {
 
@@ -14,6 +15,8 @@ const App = () => {
     switch (activeTab) {
       case 'stats':
         return <Stats />;
+      case 'profile':
+        return <Profile />;
       default:
         return <HomeList />;
     }
