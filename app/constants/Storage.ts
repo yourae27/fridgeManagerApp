@@ -25,6 +25,7 @@ export const initDatabase = async () => {
                 note TEXT,
                 date TEXT NOT NULL,
                 member TEXT NOT NULL DEFAULT '我',
+                refunded BOOLEAN DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
@@ -74,6 +75,7 @@ export const addTransaction = async (data: {
     note?: string;
     date: string;
     member?: string;
+    refunded?: boolean;
 }) => {
     const db = await getDB();
     const statement = await db.prepareAsync(`
@@ -89,7 +91,8 @@ export const addTransaction = async (data: {
             data.categoryIcon,
             data.note || '',
             data.date,
-            data.member || '我'
+            data.member || '我',
+            data.refunded || false
         ]);
     } finally {
         await statement.finalizeAsync();
@@ -148,6 +151,8 @@ export const getTransactions = async () => {
         note: string;
         date: string;
         created_at: string;
+        refunded: boolean;
+        member: string;
     }>('SELECT * FROM transactions ORDER BY created_at DESC;');
 };
 
@@ -210,6 +215,7 @@ export const updateTransaction = async (id: number, data: {
     note?: string;
     date?: string;
     member?: string;
+    refunded?: boolean;
 }) => {
     const db = await getDB();
     const updates = Object.entries(data)

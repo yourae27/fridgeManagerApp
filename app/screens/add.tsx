@@ -31,6 +31,7 @@ const Add = () => {
     selectedCategory: 0,
     note: '',
     member: '我',
+    refunded: false,
   });
 
   const [expenseState, setExpenseState] = useState({
@@ -38,6 +39,7 @@ const Add = () => {
     selectedCategory: 0,
     note: '',
     member: '我',
+    refunded: false,
   });
 
   // 获取当前激活标签的状态和设置函数
@@ -66,6 +68,7 @@ const Add = () => {
   const { routes } = useRootNavigationState();
   const params = routes[1].params as any;
   const isEditing = params?.mode === 'edit';
+  const [isRefunded, setIsRefunded] = useState(false);
 
   // 设置初始标签
   useEffect(() => {
@@ -76,6 +79,7 @@ const Add = () => {
         selectedCategory: 0, // 将在类别加载后更新
         note: params.note || '',
         member: params.member || '我',
+        refunded: params.refunded === 'true' ? true : false,
       });
       setActiveTab(params.type as 'income' | 'expense');
 
@@ -96,6 +100,8 @@ const Add = () => {
         };
         findAndSetCategory();
       }
+
+      setIsRefunded(params.refunded === 'true');
     } else if (params?.initialTab) {
       setActiveTab(params.initialTab as 'income' | 'expense');
     }
@@ -195,6 +201,7 @@ const Add = () => {
           note: currentState.note,
           date: formattedDate,
           member: currentState.member,
+          refunded: isRefunded,
         });
       } else {
         await addTransaction({
@@ -205,6 +212,7 @@ const Add = () => {
           note: currentState.note,
           date: formattedDate,
           member: currentState.member,
+          refunded: false,
         });
       }
       triggerRefresh();
@@ -342,6 +350,24 @@ const Add = () => {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* 退款状态 */}
+      {isEditing && activeTab === 'expense' && (
+        <View style={styles.refundedContainer}>
+          <Text style={styles.sectionTitle}>退款状态</Text>
+          <TouchableOpacity
+            style={styles.refundedOption}
+            onPress={() => setIsRefunded(!isRefunded)}
+          >
+            <View style={styles.refundedCheckbox}>
+              {!!isRefunded && (
+                <Ionicons name="checkmark" size={16} color="#dc4446" />
+              )}
+            </View>
+            <Text style={styles.refundedText}>已退款</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* 按钮组 */}
       <View style={styles.buttonGroup}>
@@ -758,6 +784,38 @@ const styles = StyleSheet.create({
   selectedMemberText: {
     color: '#dc4446',
     fontWeight: '500',
+  },
+  refundedContainer: {
+    marginBottom: 24,
+  },
+  refundedOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  refundedCheckbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: '#dc4446',
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refundedText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  refundedBadge: {
+    backgroundColor: '#FFF1F1',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  refundedBadgeText: {
+    color: '#dc4446',
+    fontSize: 12,
   },
 });
 

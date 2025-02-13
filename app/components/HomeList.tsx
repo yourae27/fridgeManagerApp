@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
-import { getTransactions, deleteTransaction } from '../constants/Storage';
+import { getTransactions, deleteTransaction, updateTransaction } from '../constants/Storage';
 import { router } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ interface Transaction {
   categoryIcon: string;
   note: string;
   date: string;
+  member: string;
+  refunded: boolean;
 }
 
 interface GroupedTransactions {
@@ -81,6 +83,7 @@ const HomeList = () => {
   const renderRightActions = (transaction: Transaction) => {
     return (
       <View style={styles.actionButtons}>
+
         <TouchableOpacity
           style={[styles.actionButton, styles.editButton]}
           onPress={() => {
@@ -96,11 +99,28 @@ const HomeList = () => {
                 note: transaction.note || '',
                 date: transaction.date,
                 initialTab: transaction.type,
+                member: transaction.member,
+                refunded: transaction.refunded ? 'true' : 'false',
               }
             });
           }}
         >
           <Ionicons name="pencil-outline" size={24} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.refundButton]}
+          onPress={async () => {
+            try {
+              await updateTransaction(transaction.id, {
+                refunded: true
+              });
+              loadTransactions();
+            } catch (error) {
+              console.error('Failed to refund transaction:', error);
+            }
+          }}
+        >
+          <Ionicons name="arrow-undo-outline" size={24} color="white" />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.deleteButton]}
@@ -137,6 +157,38 @@ const HomeList = () => {
       });
     }
   };
+
+  const renderTransactionItem = (transaction: Transaction) => (
+    <View style={styles.transactionItem}>
+      <View style={styles.transactionLeft}>
+        <View style={[
+          styles.transactionIcon,
+          { backgroundColor: transaction.type === 'income' ? '#FFF8E7' : '#FFF1F1' }
+        ]}>
+          <Text style={styles.iconText}>{transaction.categoryIcon}</Text>
+        </View>
+        <View style={styles.transactionInfo}>
+          <View style={styles.transactionTitleRow}>
+            <Text style={styles.transactionType}>{transaction.category}</Text>
+            {!!transaction.refunded && (
+              <View style={styles.refundedBadge}>
+                <Text style={styles.refundedText}>已退款</Text>
+              </View>
+            )}
+          </View>
+          {transaction.note && (
+            <Text style={styles.transactionNote}>{transaction.note}</Text>
+          )}
+        </View>
+      </View>
+      <Text style={[
+        styles.transactionAmount,
+        { color: transaction.type === 'income' ? '#FF9A2E' : '#dc4446' }
+      ]}>
+        {transaction.type === 'income' ? '+' : '-'}¥{transaction.amount.toFixed(2)}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.container} onTouchStart={closeAllSwipeables}>
@@ -217,30 +269,7 @@ const HomeList = () => {
                     });
                   }}
                 >
-                  <View style={styles.transactionItem}>
-                    <View style={styles.transactionLeft}>
-                      <View style={[
-                        styles.transactionIcon,
-                        { backgroundColor: transaction.type === 'income' ? '#FFF8E7' : '#FFF1F1' }
-                      ]}>
-                        <Text style={styles.iconText}>{transaction.categoryIcon}</Text>
-                      </View>
-                      <View style={[styles.transactionInfo, !transaction.note && styles.transactionInfoCenter]}>
-                        <Text style={styles.transactionType}>{transaction.category}</Text>
-                        {transaction.note && (
-                          <Text style={styles.transactionDate}>
-                            {transaction.note}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    <Text style={[
-                      styles.transactionAmount,
-                      { color: transaction.type === 'income' ? '#FF9A2E' : '#dc4446' }
-                    ]}>
-                      {transaction.type === 'income' ? '+' : '-'}¥{transaction.amount.toFixed(2)}
-                    </Text>
-                  </View>
+                  {renderTransactionItem(transaction)}
                 </Swipeable>
               ))}
             </View>
@@ -469,7 +498,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   editButton: {
-    backgroundColor: '#4285f4',
+    backgroundColor: '#C5CCFE',
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
   },
@@ -478,9 +507,28 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
   },
+  refundButton: {
+    backgroundColor: '#F1EBB3',
+  },
   transactionNote: {
     color: '#999',
     fontSize: 12,
+  },
+  refundedBadge: {
+    backgroundColor: '#dc4446',
+    borderRadius: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  refundedText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  transactionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
 });
 
