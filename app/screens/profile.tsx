@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import i18n from '../i18n';
+import { generateExcel } from '../utils/excel';
 
 interface MenuItem {
     id: string;
@@ -14,6 +15,66 @@ interface MenuItem {
 }
 
 const Profile = () => {
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [email, setEmail] = useState('');
+
+    const handleExport = async () => {
+        if (!email.trim() || !email.includes('@')) {
+            Alert.alert('提示', '请输入有效的邮箱地址');
+            return;
+        }
+
+        try {
+            await generateExcel(email);
+            Alert.alert('成功', '导出文件已发送到您的邮箱');
+            setShowExportModal(false);
+            setEmail('');
+        } catch (error) {
+            Alert.alert('错误', '导出失败，请稍后重试');
+        }
+    };
+
+    const renderExportModal = () => (
+        <Modal
+            visible={showExportModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowExportModal(false)}
+        >
+            <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={() => setShowExportModal(false)}
+            >
+                <View style={styles.exportModal}>
+                    <Text style={styles.exportTitle}>导出账单</Text>
+                    <TextInput
+                        style={styles.emailInput}
+                        placeholder="请输入邮箱地址"
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                    />
+                    <View style={styles.exportButtons}>
+                        <TouchableOpacity
+                            style={[styles.exportButton, styles.cancelButton]}
+                            onPress={() => setShowExportModal(false)}
+                        >
+                            <Text style={styles.exportButtonText}>取消</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.exportButton, styles.confirmButton]}
+                            onPress={handleExport}
+                        >
+                            <Text style={styles.exportButtonText}>确认</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        </Modal>
+    );
+
     const menuItems: MenuItem[] = [
         {
             id: 'budget',
@@ -27,9 +88,7 @@ const Profile = () => {
             title: i18n.t('profile.exportExcel'),
             icon: 'download-outline',
             color: '#2196F3',
-            onPress: () => {
-                // TODO: 实现导出功能
-            }
+            onPress: () => setShowExportModal(true)
         },
         {
             id: 'categories',
@@ -89,6 +148,7 @@ const Profile = () => {
             <View style={styles.menuSection}>
                 {menuItems.map(renderMenuItem)}
             </View>
+            {renderExportModal()}
         </ScrollView>
     );
 };
@@ -157,6 +217,54 @@ const styles = StyleSheet.create({
     menuTitle: {
         fontSize: 16,
         color: '#333',
+    },
+    exportModal: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
+        width: '80%',
+        alignSelf: 'center',
+    },
+    exportTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    emailInput: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+        fontSize: 16,
+    },
+    exportButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    exportButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+    },
+    confirmButton: {
+        backgroundColor: '#dc4446',
+    },
+    cancelButton: {
+        backgroundColor: '#666',
+    },
+    exportButtonText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
 
