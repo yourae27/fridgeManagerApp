@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
-import { getTransactions, deleteTransaction, updateTransaction } from '../constants/Storage';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Modal } from 'react-native';
+import { getTransactions, deleteTransaction, updateTransaction, getMembers } from '../constants/Storage';
 import { router } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,12 +33,21 @@ interface MonthlyTotal {
   expense: number;
 }
 
+interface Member {
+  id: number;
+  name: string;
+  budget: number | null;
+}
+
 const HomeList = () => {
   const [transactions, setTransactions] = useState<GroupedTransactions>({});
   const { refreshTrigger } = useTransactionContext();
   const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
   const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [monthlyTotal, setMonthlyTotal] = useState<MonthlyTotal>({ income: 0, expense: 0 });
+  const [selectedMembers, setSelectedMembers] = useState<string[]>(['我']);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [showMemberSelector, setShowMemberSelector] = useState(false);
 
   // 计算每日总计
   const calculateDailyTotal = (transactions: Transaction[]): DailyTotal => {
@@ -79,6 +88,51 @@ const HomeList = () => {
     setMonthlyTotal(total);
   };
 
+  // 加载成员数据
+  const loadMembers = async () => {
+    try {
+      const data = await getMembers();
+      setMembers(data);
+    } catch (error) {
+      console.error('Failed to load members:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
+
+  // 计算所有选中成员的统计数据
+  const calculateSelectedMembersStats = () => {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+
+    const stats = Object.values(transactions)
+      .flat()
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return (selectedMembers.length === 0 || selectedMembers.includes(t.member)) &&
+          t.type === 'expense' &&
+          !t.refunded &&
+          transactionDate.getMonth() === currentMonth &&
+          transactionDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    const totalBudget = selectedMembers.length === 0
+      ? members.reduce((sum, m) => sum + (m.budget || 0), 0)
+      : members
+        .filter(m => selectedMembers.includes(m.name))
+        .reduce((sum, m) => sum + (m.budget || 0), 0);
+
+    return {
+      expenses: stats,
+      budget: totalBudget,
+      remaining: totalBudget - stats
+    };
+  };
+
   const loadTransactions = async () => {
     try {
       const data = await getTransactions();
@@ -86,8 +140,9 @@ const HomeList = () => {
 
       // 根据过滤条件筛选数据
       const filteredData = data.filter(transaction => {
-        if (activeFilter === 'all') return true;
-        return transaction.type === activeFilter;
+        const typeMatch = activeFilter === 'all' || transaction.type === activeFilter;
+        const memberMatch = selectedMembers.length === 0 || selectedMembers.includes(transaction.member);
+        return typeMatch && memberMatch;
       });
 
       // 按日期分组
@@ -115,7 +170,7 @@ const HomeList = () => {
 
   useEffect(() => {
     loadTransactions();
-  }, [refreshTrigger, activeFilter]);
+  }, [refreshTrigger, activeFilter, selectedMembers]);
 
   // 关闭所有打开的左滑菜单
   const closeAllSwipeables = () => {
@@ -244,48 +299,168 @@ const HomeList = () => {
     </View>
   );
 
-  return (
-    <View style={styles.container} onTouchStart={closeAllSwipeables}>
+  const renderMemberSelectorModal = () => (
+    <Modal
+      visible={showMemberSelector}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowMemberSelector(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowMemberSelector(false)}
+      >
+        <View style={[styles.memberSelectorModal, {
+          top: 160,
+          right: 20,
+        }]}>
+          <TouchableOpacity
+            style={[
+              styles.memberSelectorItem,
+              selectedMembers.length === 0 && styles.selectedMemberItem
+            ]}
+            onPress={() => {
+              setSelectedMembers([]);
+              setShowMemberSelector(false);
+            }}
+          >
+            <Text style={[
+              styles.memberSelectorItemText,
+              selectedMembers.length === 0 && styles.selectedMemberItemText
+            ]}>全部成员</Text>
+          </TouchableOpacity>
+          {members.map(member => (
+            <TouchableOpacity
+              key={member.id}
+              style={[
+                styles.memberSelectorItem,
+                selectedMembers.includes(member.name) && styles.selectedMemberItem
+              ]}
+              onPress={() => {
+                setSelectedMembers(prev => {
+                  const newSelection = prev.includes(member.name)
+                    ? prev.filter(m => m !== member.name)
+                    : [...prev, member.name];
+                  return newSelection;
+                });
+              }}
+            >
+              <View style={styles.memberSelectorItemContent}>
+                <Text style={[
+                  styles.memberSelectorItemText,
+                  selectedMembers.includes(member.name) && styles.selectedMemberItemText
+                ]}>{member.name}</Text>
+                {member.budget && (
+                  <Text style={styles.memberBudgetText}>
+                    预算: ¥{member.budget.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+              {selectedMembers.includes(member.name) && (
+                <Ionicons name="checkmark" size={20} color="#dc4446" />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
-      <View style={styles.buttons}>
-        <TouchableOpacity
-          style={styles.expenseButton}
-          onPress={() => router.push({
-            pathname: '/screens/add',
-            params: { initialTab: 'expense' }
-          })}
-        >
-          <Text style={styles.expenseButtonText}>- {i18n.t('common.expense')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.incomeButton}
-          onPress={() => router.push({
-            pathname: '/screens/add',
-            params: { initialTab: 'income' }
-          })}
-        >
-          <Text style={styles.incomeButtonText}>+ {i18n.t('common.income')}</Text>
-        </TouchableOpacity>
-      </View>
+  const renderBudgetSection = () => {
+    const stats = calculateSelectedMembersStats();
+    if (!stats.budget) return null;
 
-      <View style={styles.monthlyStatsCard}>
-        <Text style={styles.monthlyStatsTitle}>本月收支</Text>
-        <View style={styles.monthlyStatsContent}>
-          <View style={styles.monthlyStatsItem}>
-            <Text style={styles.monthlyStatsLabel}>收入</Text>
-            <Text style={[styles.monthlyStatsAmount, { color: '#FF9A2E' }]}>
-              ¥{monthlyTotal.income.toFixed(2)}
-            </Text>
+    const progress = (stats.expenses / stats.budget) * 100;
+    const displayText = selectedMembers.length === 0
+      ? '全部成员'
+      : selectedMembers.length === 1
+        ? selectedMembers[0]
+        : `已选择 ${selectedMembers.length} 人`;
+
+    return (
+      <View style={styles.budgetSection}>
+        <View style={styles.budgetHeader}>
+          <Text style={styles.budgetTitle}>月预算</Text>
+          <TouchableOpacity
+            style={styles.memberSelector}
+            onPress={() => setShowMemberSelector(true)}
+          >
+            <Text style={styles.memberSelectorText}>{displayText}</Text>
+            <Ionicons name="chevron-down" size={16} color="#333" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.budgetCard}>
+          <Text style={styles.totalBudget}>¥{stats.budget.toFixed(2)}</Text>
+          <View style={styles.budgetProgressBar}>
+            <View style={[styles.budgetProgress, { width: `${Math.min(progress, 100)}%` }]} />
           </View>
-          <View style={styles.monthlyStatsDivider} />
-          <View style={styles.monthlyStatsItem}>
-            <Text style={styles.monthlyStatsLabel}>支出</Text>
-            <Text style={[styles.monthlyStatsAmount, { color: '#dc4446' }]}>
-              ¥{monthlyTotal.expense.toFixed(2)}
+          <View style={styles.budgetDetails}>
+            <Text style={styles.budgetDetailText}>
+              已使用: ¥{stats.expenses.toFixed(2)}
+            </Text>
+            <Text style={[
+              styles.budgetDetailText,
+              stats.remaining && stats.remaining < 0 ? styles.overBudget : null
+            ]}>
+              剩余: ¥{stats.remaining?.toFixed(2)}
             </Text>
           </View>
         </View>
       </View>
+    );
+  };
+
+  const renderButtonGroup = () => {
+    return <View style={styles.buttons}>
+      <TouchableOpacity
+        style={styles.expenseButton}
+        onPress={() => router.push({
+          pathname: '/screens/add',
+          params: { initialTab: 'expense' }
+        })}
+      >
+        <Text style={styles.expenseButtonText}>- {i18n.t('common.expense')}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.incomeButton}
+        onPress={() => router.push({
+          pathname: '/screens/add',
+          params: { initialTab: 'income' }
+        })}
+      >
+        <Text style={styles.incomeButtonText}>+ {i18n.t('common.income')}</Text>
+      </TouchableOpacity>
+    </View>
+  }
+
+  const renderMonthlyStatsCard = () => {
+    return <View style={styles.monthlyStatsCard}>
+      <Text style={styles.monthlyStatsTitle}>本月收支</Text>
+      <View style={styles.monthlyStatsContent}>
+        <View style={styles.monthlyStatsItem}>
+          <Text style={styles.monthlyStatsLabel}>收入</Text>
+          <Text style={[styles.monthlyStatsAmount, { color: '#FF9A2E' }]}>
+            ¥{monthlyTotal.income.toFixed(2)}
+          </Text>
+        </View>
+        <View style={styles.monthlyStatsDivider} />
+        <View style={styles.monthlyStatsItem}>
+          <Text style={styles.monthlyStatsLabel}>支出</Text>
+          <Text style={[styles.monthlyStatsAmount, { color: '#dc4446' }]}>
+            ¥{monthlyTotal.expense.toFixed(2)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  }
+
+  return (
+    <View style={styles.container} onTouchStart={closeAllSwipeables}>
+      {/* {renderButtonGroup()} */}
+      {renderBudgetSection()}
+      {renderMemberSelectorModal()}
+      {renderMonthlyStatsCard()}
 
       <View style={styles.transactionSection}>
         <View style={styles.transactionHeader}>
@@ -675,6 +850,143 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 4,
+  },
+  memberFilter: {
+    marginBottom: 16,
+  },
+  memberFilterItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  selectedMemberFilter: {
+    backgroundColor: '#fff1f1',
+  },
+  memberFilterText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedMemberFilterText: {
+    color: '#dc4446',
+    fontWeight: '500',
+  },
+  budgetInfo: {
+    marginTop: 4,
+  },
+  budgetText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  remainingText: {
+    fontSize: 12,
+    color: '#4CAF50',
+  },
+  overBudget: {
+    color: '#dc4446',
+  },
+  budgetSection: {
+    marginBottom: 20,
+  },
+  budgetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  budgetTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  memberSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fff1f1',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  memberSelectorText: {
+    fontSize: 14,
+    color: '#dc4446',
+  },
+  budgetCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+  },
+  totalBudget: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  budgetProgressBar: {
+    height: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 4,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  budgetProgress: {
+    height: '100%',
+    backgroundColor: '#dc4446',
+    borderRadius: 4,
+  },
+  budgetDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  budgetDetailText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  memberSelectorModal: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 160,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  memberSelectorItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  selectedMemberItem: {
+    backgroundColor: '#fff1f1',
+  },
+  memberSelectorItemText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedMemberItemText: {
+    color: '#dc4446',
+    fontWeight: '500',
+  },
+  memberBudgetText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  memberSelectorItemContent: {
+    flex: 1,
   },
 });
 
