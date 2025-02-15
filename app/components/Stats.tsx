@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
-import { getTransactions, getMembers, getCategories } from '../constants/Storage';
+import { getTransactions, getMembers, getCategories, getTags } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '../i18n';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -25,6 +25,13 @@ interface Transaction {
   date: string;
   member: string;
   refunded: boolean;
+  tags?: number[];
+}
+
+interface Tag {
+  id: number;
+  name: string;
+  color: string;
 }
 
 const Stats = () => {
@@ -37,6 +44,7 @@ const Stats = () => {
   const [selectedTransactions, setSelectedTransactions] = useState<Transaction[]>([]);
   const [showTransactions, setShowTransactions] = useState(false);
   const [selectedItemName, setSelectedItemName] = useState('');
+  const [tags, setTags] = useState<Tag[]>([]);
 
   const [monthlyStats, setMonthlyStats] = useState({
     balance: 0,
@@ -49,57 +57,7 @@ const Stats = () => {
   const loadStats = async () => {
     try {
       const transactions = await getTransactions();
-
-      // 计算当前月份的收支
-      const currentMonthTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        return transactionDate.getMonth() === selectedDate.getMonth() &&
-          transactionDate.getFullYear() === selectedDate.getFullYear();
-      });
-
-      const currentStats = currentMonthTransactions.reduce((acc, t) => {
-        if (!t.refunded) {
-          if (t.type === 'income') {
-            acc.income += Math.abs(t.amount);
-          } else {
-            acc.expense += Math.abs(t.amount);
-          }
-        }
-        return acc;
-      }, { income: 0, expense: 0 });
-
-      // 计算上个月的收支用于计算变化率
-      const lastMonth = new Date(selectedDate);
-      lastMonth.setMonth(lastMonth.getMonth() - 1);
-
-      const lastMonthTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        return transactionDate.getMonth() === lastMonth.getMonth() &&
-          transactionDate.getFullYear() === lastMonth.getFullYear();
-      });
-
-      const lastStats = lastMonthTransactions.reduce((acc, t) => {
-        if (!t.refunded) {
-          if (t.type === 'income') {
-            acc.income += Math.abs(t.amount);
-          } else {
-            acc.expense += Math.abs(t.amount);
-          }
-        }
-        return acc;
-      }, { income: 0, expense: 0 });
-
-      // 计算变化率
-      const incomeChange = lastStats.income ? ((currentStats.income - lastStats.income) / lastStats.income) * 100 : 0;
-      const expenseChange = lastStats.expense ? ((currentStats.expense - lastStats.expense) / lastStats.expense) * 100 : 0;
-
-      setMonthlyStats({
-        balance: currentStats.income - currentStats.expense,
-        income: currentStats.income,
-        expense: currentStats.expense,
-        incomeChange,
-        expenseChange
-      });
+      const currentDate = new Date();
 
       // 筛选符合时间范围的交易
       const filteredTransactions = transactions.filter(t => {
@@ -114,35 +72,121 @@ const Stats = () => {
 
       // 按类型分组统计
       const groupedStats = new Map<string, number>();
-      const iconMap = new Map<string, string>();
 
-      if (type === 'category') {
-        const categories = await getCategories('expense');
-        categories.forEach(c => {
-          iconMap.set(c.name, c.icon);
+      if (type === 'tag') {
+        // 加载标签数据
+        const tagData = await getTags();
+        setTags(tagData);
+
+        // 统计每个标签的支出总额
+        filteredTransactions.forEach(t => {
+          if (t.type === 'expense' && !t.refunded && t.tags) {
+            t.tags.forEach(tagId => {
+              const tag = tagData.find(tag => tag.id === tagId);
+              if (tag) {
+                const currentAmount = groupedStats.get(tag.name) || 0;
+                groupedStats.set(tag.name, currentAmount + Math.abs(t.amount));
+              }
+            });
+          }
         });
       } else {
-        const members = await getMembers();
-        members.forEach(m => {
-          iconMap.set(m.name, '👤');
+        // 计算当前月份的收支
+        const currentMonthTransactions = transactions.filter(t => {
+          const transactionDate = new Date(t.date);
+          return transactionDate.getMonth() === selectedDate.getMonth() &&
+            transactionDate.getFullYear() === selectedDate.getFullYear();
+        });
+
+        const currentStats = currentMonthTransactions.reduce((acc, t) => {
+          if (!t.refunded) {
+            if (t.type === 'income') {
+              acc.income += Math.abs(t.amount);
+            } else {
+              acc.expense += Math.abs(t.amount);
+            }
+          }
+          return acc;
+        }, { income: 0, expense: 0 });
+
+        // 计算上个月的收支用于计算变化率
+        const lastMonth = new Date(selectedDate);
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+        const lastMonthTransactions = transactions.filter(t => {
+          const transactionDate = new Date(t.date);
+          return transactionDate.getMonth() === lastMonth.getMonth() &&
+            transactionDate.getFullYear() === lastMonth.getFullYear();
+        });
+
+        const lastStats = lastMonthTransactions.reduce((acc, t) => {
+          if (!t.refunded) {
+            if (t.type === 'income') {
+              acc.income += Math.abs(t.amount);
+            } else {
+              acc.expense += Math.abs(t.amount);
+            }
+          }
+          return acc;
+        }, { income: 0, expense: 0 });
+
+        // 计算变化率
+        const incomeChange = lastStats.income ? ((currentStats.income - lastStats.income) / lastStats.income) * 100 : 0;
+        const expenseChange = lastStats.expense ? ((currentStats.expense - lastStats.expense) / lastStats.expense) * 100 : 0;
+
+        setMonthlyStats({
+          balance: currentStats.income - currentStats.expense,
+          income: currentStats.income,
+          expense: currentStats.expense,
+          incomeChange,
+          expenseChange
+        });
+
+        // 按类型分组统计
+        const iconMap = new Map<string, string>();
+
+        if (type === 'category') {
+          const categories = await getCategories('expense');
+          categories.forEach(c => {
+            iconMap.set(c.name, c.icon);
+          });
+        } else {
+          const members = await getMembers();
+          members.forEach(m => {
+            iconMap.set(m.name, '👤');
+          });
+        }
+
+        filteredTransactions.forEach(t => {
+          if (t.type === 'expense' && !t.refunded) {
+            const key = type === 'category' ? t.category : t.member;
+            const currentAmount = groupedStats.get(key) || 0;
+            groupedStats.set(key, currentAmount + Math.abs(t.amount));
+          }
         });
       }
 
-      filteredTransactions.forEach(t => {
-        if (t.type === 'expense' && !t.refunded) {
-          const key = type === 'category' ? t.category : t.member;
-          const currentAmount = groupedStats.get(key) || 0;
-          groupedStats.set(key, currentAmount + Math.abs(t.amount));
-        }
-      });
-
       // 转换为数组并排序
       const statsArray = Array.from(groupedStats.entries())
-        .map(([name, amount]) => ({
-          name,
-          amount,
-          icon: iconMap.get(name) || '📊',
-        }))
+        .map(([name, amount]) => {
+          let icon = '📊';
+          let color = '#666';
+
+          if (type === 'tag') {
+            const tag = tags.find(t => t.name === name);
+            if (tag) {
+              color = tag.color;
+            }
+          }
+          // ... 其他类型的图标和颜色处理保持不变
+
+          return {
+            name,
+            amount,
+            icon,
+            color,
+          };
+        })
         .sort((a, b) => b.amount - a.amount);
 
       const total = statsArray.reduce((sum, item) => sum + item.amount, 0);
@@ -229,7 +273,6 @@ const Stats = () => {
     </View>
   }
 
-
   const renderTransactionModal = () => (
     <Modal
       visible={showTransactions}
@@ -247,7 +290,7 @@ const Stats = () => {
           </View>
           <ScrollView style={styles.transactionList}>
             {selectedTransactions.map((transaction, index) => (
-              <View key={index} style={styles.transactionItem}>
+              <View key={`${transaction.id}-${index}`} style={styles.transactionItem}>
                 <View style={styles.transactionLeft}>
                   <Text style={styles.transactionIcon}>{transaction.categoryIcon}</Text>
                   <View>
@@ -271,10 +314,41 @@ const Stats = () => {
     </Modal>
   );
 
+  // 渲染统计项
+  const renderStatItem = (item: StatItem) => (
+    <TouchableOpacity
+      style={styles.statItem}
+      onPress={() => showTransactionDetails(item.name)}
+    >
+      <View style={styles.statHeader}>
+        <View style={styles.statLeft}>
+          {type === 'tag' ? (
+            <View style={[styles.tagIcon, { backgroundColor: item.color }]} />
+          ) : (
+            <Text style={styles.statIcon}>{item.icon}</Text>
+          )}
+          <Text style={styles.statName}>{item.name}</Text>
+        </View>
+        <Text style={styles.statAmount}>¥{item.amount.toFixed(2)}</Text>
+      </View>
+      <View style={styles.progressBarContainer}>
+        <View
+          style={[
+            styles.progressBar,
+            type === 'tag' && { backgroundColor: item.color },
+            { width: `${(item.amount / totalAmount) * 100}%` }
+          ]}
+        />
+      </View>
+      <Text style={styles.percentage}>
+        {((item.amount / totalAmount) * 100).toFixed(1)}%
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-
         <View style={styles.dateRow}>
           <TouchableOpacity
             style={styles.yearSelector}
@@ -315,66 +389,16 @@ const Stats = () => {
 
       {renderFilterChosen()}
 
-      {/* <View style={styles.statsCards}>
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Total Balance</Text>
-          <Text style={styles.balanceAmount}>¥{monthlyStats.balance.toFixed(2)}</Text>
-        </View>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statsCard}>
-            <Text style={styles.statsLabel}>Income</Text>
-            <Text style={styles.incomeAmount}>¥{monthlyStats.income.toFixed(2)}</Text>
-            <View style={styles.changeRow}>
-              <View style={[styles.changeIcon, { backgroundColor: '#e8f5e9' }]}>
-                <Ionicons name="arrow-up" size={16} color="#4caf50" />
-              </View>
-              <Text style={[styles.changeText, { color: '#4caf50' }]}>
-                +{monthlyStats.incomeChange.toFixed(1)}%
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.statsCard}>
-            <Text style={styles.statsLabel}>Expenses</Text>
-            <Text style={styles.expenseAmount}>¥{monthlyStats.expense.toFixed(2)}</Text>
-            <View style={styles.changeRow}>
-              <View style={[styles.changeIcon, { backgroundColor: '#ffebee' }]}>
-                <Ionicons name="arrow-down" size={16} color="#dc4446" />
-              </View>
-              <Text style={[styles.changeText, { color: '#dc4446' }]}>
-                +{monthlyStats.expenseChange.toFixed(1)}%
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View> */}
-
       <View style={styles.categoriesSection}>
-        <Text style={styles.sectionTitle}>Spending Categories</Text>
+        <Text style={styles.sectionTitle}>
+          {type === 'category' ? '支出分类' : type === 'member' ? '成员支出' : '标签支出'}
+        </Text>
         <View style={styles.statsList}>
-          {stats.map((item, index) => {
-            const percentage = (item.amount / totalAmount) * 100;
-            return (
-              <TouchableOpacity
-                key={index}
-                style={styles.statItem}
-                onPress={() => showTransactionDetails(item.name)}
-              >
-                <View style={styles.statHeader}>
-                  <View style={styles.statLeft}>
-                    <Text style={styles.statIcon}>{item.icon}</Text>
-                    <Text style={styles.statName}>{item.name}</Text>
-                  </View>
-                  <Text style={styles.statAmount}>¥{item.amount.toFixed(2)}</Text>
-                </View>
-                <View style={styles.progressBarContainer}>
-                  <View style={[styles.progressBar, { width: `${percentage}%` }]} />
-                </View>
-                <Text style={styles.percentage}>{percentage.toFixed(1)}%</Text>
-              </TouchableOpacity>
-            );
-          })}
+          {stats.map((item, index) => (
+            <View key={`${item.name}-${index}`}>
+              {renderStatItem(item)}
+            </View>
+          ))}
         </View>
       </View>
 
@@ -650,6 +674,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#dc4446',
+  },
+  tagIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
 });
 
