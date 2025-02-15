@@ -63,6 +63,21 @@ export const initDatabase = async () => {
                 budget REAL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                color TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS transaction_tags (
+                transaction_id INTEGER,
+                tag_id INTEGER,
+                FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+                FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+                PRIMARY KEY(transaction_id, tag_id)
+            );
         `);
         // INSERT OR IGNORE INTO categories (type, name, icon) VALUES
         // ('expense', 'Food', '🍽️'),
@@ -86,27 +101,33 @@ export const addTransaction = async (data: {
     date: string;
     member?: string;
     refunded?: boolean;
+    tags?: number[];
 }) => {
     const db = await getDB();
-    const statement = await db.prepareAsync(`
-        INSERT INTO transactions (
-            type, amount, category, categoryIcon, note, date, member
-        ) VALUES (?, ?, ?, ?, ?, ?, ?);
-    `);
-    try {
-        return await statement.executeAsync([
-            data.type,
-            data.amount,
-            data.category,
-            data.categoryIcon,
-            data.note || '',
-            data.date,
-            data.member || '我',
-            data.refunded || false
-        ]);
-    } finally {
-        await statement.finalizeAsync();
-    }
+    await db.withTransactionAsync(async () => {
+        const result = await db.runAsync(
+            'INSERT INTO transactions (type, amount, category, categoryIcon, note, date, member, refunded) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+            [
+                data.type,
+                data.amount,
+                data.category,
+                data.categoryIcon,
+                data.note || '',
+                data.date,
+                data.member || '我',
+                data.refunded || false
+            ]
+        );
+
+        if (data.tags?.length) {
+            const transactionId = result.lastInsertRowId;
+            const tagValues = data.tags.map(tagId => `(${transactionId}, ${tagId})`).join(',');
+            await db.runAsync(`
+                INSERT INTO transaction_tags (transaction_id, tag_id)
+                VALUES ${tagValues};
+            `);
+        }
+    });
 };
 
 export const addFavorite = async (data: {
@@ -152,7 +173,7 @@ export const getFavorites = async (type: 'income' | 'expense') => {
 
 export const getTransactions = async () => {
     const db = await getDB();
-    return await db.getAllAsync<{
+    const transactions = await db.getAllAsync<{
         id: number;
         type: 'income' | 'expense';
         amount: number;
@@ -164,6 +185,22 @@ export const getTransactions = async () => {
         refunded: boolean;
         member: string;
     }>('SELECT * FROM transactions ORDER BY created_at DESC;');
+
+    // 获取每个交易的标签
+    const transactionsWithTags = await Promise.all(
+        transactions.map(async transaction => {
+            const tags = await db.getAllAsync<{ tag_id: number }>(
+                'SELECT tag_id FROM transaction_tags WHERE transaction_id = ?;',
+                [transaction.id]
+            );
+            return {
+                ...transaction,
+                tags: tags.map(t => t.tag_id),
+            };
+        })
+    );
+
+    return transactionsWithTags;
 };
 
 export const deleteFavorite = async (type: 'income' | 'expense', id: number) => {
@@ -339,4 +376,60 @@ export const deleteMember = async (id: number) => {
     } finally {
         await statement.finalizeAsync();
     }
-}; 
+};
+
+// 标签相关操作
+export const getTags = async () => {
+    const db = await getDB();
+    return await db.getAllAsync<{
+        id: number;
+        name: string;
+        color: string;
+        created_at: string;
+    }>('SELECT * FROM tags ORDER BY created_at ASC;');
+};
+
+export const addTag = async (data: { name: string; color: string }) => {
+    const db = await getDB();
+    const statement = await db.prepareAsync(
+        'INSERT INTO tags (name, color) VALUES (?, ?);'
+    );
+    try {
+        return await statement.executeAsync([data.name, data.color]);
+    } finally {
+        await statement.finalizeAsync();
+    }
+};
+
+export const updateTag = async (id: number, data: { name?: string; color?: string }) => {
+    const db = await getDB();
+    const updates = Object.entries(data)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, _]) => `${key} = ?`)
+        .join(', ');
+
+    const values = Object.entries(data)
+        .filter(([_, value]) => value !== undefined)
+        .map(([_, value]) => value);
+
+    const statement = await db.prepareAsync(`
+        UPDATE tags 
+        SET ${updates}
+        WHERE id = ?;
+    `);
+    try {
+        return await statement.executeAsync([...values, id]);
+    } finally {
+        await statement.finalizeAsync();
+    }
+};
+
+export const deleteTag = async (id: number) => {
+    const db = await getDB();
+    const statement = await db.prepareAsync('DELETE FROM tags WHERE id = ?;');
+    try {
+        return await statement.executeAsync([id]);
+    } finally {
+        await statement.finalizeAsync();
+    }
+};

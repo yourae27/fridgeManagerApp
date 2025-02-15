@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Modal } from 'react-native';
-import { getTransactions, deleteTransaction, updateTransaction, getMembers } from '../constants/Storage';
+import { getTransactions, deleteTransaction, updateTransaction, getMembers, getTags } from '../constants/Storage';
 import { router } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ interface Transaction {
   date: string;
   member: string;
   refunded: boolean;
+  tags?: number[];
 }
 
 interface GroupedTransactions {
@@ -39,15 +40,22 @@ interface Member {
   budget: number | null;
 }
 
+interface Tag {
+  id: number;
+  name: string;
+  color: string;
+}
+
 const HomeList = () => {
   const [transactions, setTransactions] = useState<GroupedTransactions>({});
   const { refreshTrigger } = useTransactionContext();
   const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
   const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [monthlyTotal, setMonthlyTotal] = useState<MonthlyTotal>({ income: 0, expense: 0 });
-  const [selectedMembers, setSelectedMembers] = useState<string[]>(['我']);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [showMemberSelector, setShowMemberSelector] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
 
   // 计算每日总计
   const calculateDailyTotal = (transactions: Transaction[]): DailyTotal => {
@@ -98,8 +106,19 @@ const HomeList = () => {
     }
   };
 
+  // 加载标签数据
+  const loadTags = async () => {
+    try {
+      const data = await getTags();
+      setTags(data);
+    } catch (error) {
+      console.error('Failed to load tags:', error);
+    }
+  };
+
   useEffect(() => {
     loadMembers();
+    loadTags();
   }, []);
 
   // 计算所有选中成员的统计数据
@@ -141,7 +160,7 @@ const HomeList = () => {
       // 根据过滤条件筛选数据
       const filteredData = data.filter(transaction => {
         const typeMatch = activeFilter === 'all' || transaction.type === activeFilter;
-        const memberMatch = selectedMembers.length === 0 || selectedMembers.includes(transaction.member);
+        const memberMatch = selectedMembers.length === 0 ? true : selectedMembers.includes(transaction.member);
         return typeMatch && memberMatch;
       });
 
@@ -207,6 +226,7 @@ const HomeList = () => {
                 initialTab: transaction.type,
                 member: transaction.member,
                 refunded: transaction.refunded ? 'true' : 'false',
+                tags: transaction.tags,
               }
             });
           }}
@@ -264,6 +284,46 @@ const HomeList = () => {
     }
   };
 
+  // 获取交易的标签
+  const getTransactionTags = (transaction: Transaction) => {
+    if (!transaction.tags) return [];
+    return tags.filter(tag => transaction.tags?.includes(tag.id));
+  };
+
+  // 渲染标签
+  const renderTags = (transaction: Transaction) => {
+    const transactionTags = getTransactionTags(transaction);
+    if (transactionTags.length === 0) return null;
+
+    let displayTags = transactionTags;
+    let hasMore = false;
+
+    // 如果标签总字符数超过5或标签数超过2，只显示前面的标签
+    const totalChars = transactionTags.reduce((sum, tag) => sum + tag.name.length, 0);
+    if (totalChars > 5 || transactionTags.length > 2) {
+      displayTags = transactionTags.slice(0, 2);
+      hasMore = true;
+    }
+
+    return (
+      <View style={styles.tagContainer}>
+        {displayTags.map(tag => (
+          <View
+            key={tag.id}
+            style={[styles.tag, { borderColor: tag.color }]}
+          >
+            <Text style={[styles.tagText, { color: tag.color }]}>
+              {tag.name}
+            </Text>
+          </View>
+        ))}
+        {hasMore && (
+          <Text style={styles.moreTagsText}>...</Text>
+        )}
+      </View>
+    );
+  };
+
   const renderTransactionItem = (transaction: Transaction) => (
     <View style={styles.transactionItem}>
       <View style={styles.transactionLeft}>
@@ -288,6 +348,7 @@ const HomeList = () => {
           {transaction.note && (
             <Text style={styles.transactionNote}>{transaction.note}</Text>
           )}
+          {transaction.type === 'expense' && renderTags(transaction)}
         </View>
       </View>
       <Text style={[
@@ -436,17 +497,16 @@ const HomeList = () => {
 
   const renderMonthlyStatsCard = () => {
     return <View style={styles.monthlyStatsCard}>
-      <Text style={styles.monthlyStatsTitle}>本月收支</Text>
       <View style={styles.monthlyStatsContent}>
         <View style={styles.monthlyStatsItem}>
-          <Text style={styles.monthlyStatsLabel}>收入</Text>
+          <Text style={styles.monthlyStatsLabel}>本月收入</Text>
           <Text style={[styles.monthlyStatsAmount, { color: '#FF9A2E' }]}>
             ¥{monthlyTotal.income.toFixed(2)}
           </Text>
         </View>
         <View style={styles.monthlyStatsDivider} />
         <View style={styles.monthlyStatsItem}>
-          <Text style={styles.monthlyStatsLabel}>支出</Text>
+          <Text style={styles.monthlyStatsLabel}>本月支出</Text>
           <Text style={[styles.monthlyStatsAmount, { color: '#dc4446' }]}>
             ¥{monthlyTotal.expense.toFixed(2)}
           </Text>
@@ -987,6 +1047,26 @@ const styles = StyleSheet.create({
   },
   memberSelectorItemContent: {
     flex: 1,
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  tag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    backgroundColor: 'white',
+  },
+  tagText: {
+    fontSize: 10,
+  },
+  moreTagsText: {
+    fontSize: 10,
+    color: '#666',
   },
 });
 

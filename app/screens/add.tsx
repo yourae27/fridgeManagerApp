@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Platform, Button } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useRootNavigationState } from 'expo-router';
-import { addFavorite, addTransaction, getFavorites, deleteFavorite, updateTransaction, getCategories, getMembers } from '../constants/Storage';
+import { addFavorite, addTransaction, getFavorites, deleteFavorite, updateTransaction, getCategories, getMembers, getTags } from '../constants/Storage';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTransactionContext } from '../context/TransactionContext';
 import { Category } from './categories';
@@ -19,6 +19,12 @@ export interface FavoriteRecord {
   note: string;
   date: string;
   created_at: string;
+}
+
+interface Tag {
+  id: number;
+  name: string;
+  color: string;
 }
 
 const Add = () => {
@@ -63,6 +69,8 @@ const Add = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const { refreshTrigger } = useCategoryContext();
   const [members, setMembers] = useState<string[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
 
   // 从路由参数中获取编辑数据
   const { routes } = useRootNavigationState();
@@ -99,6 +107,9 @@ const Add = () => {
           }
         };
         findAndSetCategory();
+      }
+      if (params.tags?.length) {
+        setSelectedTags(params.tags)
       }
 
       setIsRefunded(params.refunded === 'true');
@@ -213,6 +224,7 @@ const Add = () => {
           date: formattedDate,
           member: currentState.member,
           refunded: false,
+          tags: selectedTags,
         });
       }
       triggerRefresh();
@@ -259,6 +271,35 @@ const Add = () => {
     return name.slice(0, 4) + '...';
   };
 
+  const renderTagSection = () => {
+    return <View>
+      <Text style={styles.sectionTitle}>标签</Text>
+      <View style={styles.tagGrid}>
+        {tags.map(tag => (
+          <TouchableOpacity
+            key={tag.id}
+            style={[
+              styles.tagItem,
+              selectedTags.includes(tag.id) && styles.selectedTag,
+              { borderColor: tag.color }
+            ]}
+            onPress={() => {
+              setSelectedTags(prev =>
+                prev.includes(tag.id)
+                  ? prev.filter(id => id !== tag.id)
+                  : [...prev, tag.id]
+              );
+            }}
+          >
+            <Text style={[
+              styles.tagText,
+              selectedTags.includes(tag.id) && { color: tag.color }
+            ]}>{tag.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  }
   const renderCreateNew = () => (
     <ScrollView style={styles.scrollView}>
       {/* 金额输入 */}
@@ -379,6 +420,8 @@ const Add = () => {
         </View>
       )}
 
+      {activeTab === 'expense' && renderTagSection()}
+
       {/* 按钮组 */}
       <View style={styles.buttonGroup}>
         <TouchableOpacity
@@ -471,6 +514,20 @@ const Add = () => {
   // 在组件加载时获取成员列表
   useEffect(() => {
     loadMembers();
+  }, []);
+
+  // 加载标签
+  const loadTags = async () => {
+    try {
+      const data = await getTags();
+      setTags(data);
+    } catch (error) {
+      console.error('Failed to load tags:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadTags();
   }, []);
 
   return (
@@ -838,6 +895,26 @@ const styles = StyleSheet.create({
   refundedBadgeText: {
     color: '#dc4446',
     fontSize: 12,
+  },
+  tagGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 24,
+  },
+  tagItem: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  selectedTag: {
+    backgroundColor: '#fff1f1',
+  },
+  tagText: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 
