@@ -1,220 +1,655 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import { getTransactions, getMembers, getCategories } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
+import i18n from '../i18n';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+type StatsType = 'member' | 'category' | 'tag';
+type StatsPeriod = 'month' | 'year';
+
+interface StatItem {
+  name: string;
+  amount: number;
+  icon?: string;
+  color?: string;
+}
+
+interface Transaction {
+  id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  category: string;
+  categoryIcon: string;
+  note: string;
+  date: string;
+  member: string;
+  refunded: boolean;
+}
 
 const Stats = () => {
-  const data = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    datasets: [
-      {
-        data: [6000, 5800, 6500, 6200, 6800, 6400],
-        color: () => '#4CAF50',
-        strokeWidth: 2
-      },
-      {
-        data: [2000, 2300, 1900, 2400, 2000, 2200],
-        color: () => '#FF5252',
-        strokeWidth: 2
+  const [period, setPeriod] = useState<StatsPeriod>('month');
+  const [type, setType] = useState<StatsType>('category');
+  const [stats, setStats] = useState<StatItem[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedTransactions, setSelectedTransactions] = useState<Transaction[]>([]);
+  const [showTransactions, setShowTransactions] = useState(false);
+  const [selectedItemName, setSelectedItemName] = useState('');
+
+  const [monthlyStats, setMonthlyStats] = useState({
+    balance: 0,
+    income: 0,
+    expense: 0,
+    incomeChange: 0,
+    expenseChange: 0
+  });
+
+  const loadStats = async () => {
+    try {
+      const transactions = await getTransactions();
+
+      // 计算当前月份的收支
+      const currentMonthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === selectedDate.getMonth() &&
+          transactionDate.getFullYear() === selectedDate.getFullYear();
+      });
+
+      const currentStats = currentMonthTransactions.reduce((acc, t) => {
+        if (!t.refunded) {
+          if (t.type === 'income') {
+            acc.income += Math.abs(t.amount);
+          } else {
+            acc.expense += Math.abs(t.amount);
+          }
+        }
+        return acc;
+      }, { income: 0, expense: 0 });
+
+      // 计算上个月的收支用于计算变化率
+      const lastMonth = new Date(selectedDate);
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+
+      const lastMonthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === lastMonth.getMonth() &&
+          transactionDate.getFullYear() === lastMonth.getFullYear();
+      });
+
+      const lastStats = lastMonthTransactions.reduce((acc, t) => {
+        if (!t.refunded) {
+          if (t.type === 'income') {
+            acc.income += Math.abs(t.amount);
+          } else {
+            acc.expense += Math.abs(t.amount);
+          }
+        }
+        return acc;
+      }, { income: 0, expense: 0 });
+
+      // 计算变化率
+      const incomeChange = lastStats.income ? ((currentStats.income - lastStats.income) / lastStats.income) * 100 : 0;
+      const expenseChange = lastStats.expense ? ((currentStats.expense - lastStats.expense) / lastStats.expense) * 100 : 0;
+
+      setMonthlyStats({
+        balance: currentStats.income - currentStats.expense,
+        income: currentStats.income,
+        expense: currentStats.expense,
+        incomeChange,
+        expenseChange
+      });
+
+      // 筛选符合时间范围的交易
+      const filteredTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        if (period === 'month') {
+          return transactionDate.getMonth() === selectedDate.getMonth() &&
+            transactionDate.getFullYear() === selectedDate.getFullYear();
+        } else {
+          return transactionDate.getFullYear() === selectedDate.getFullYear();
+        }
+      });
+
+      // 按类型分组统计
+      const groupedStats = new Map<string, number>();
+      const iconMap = new Map<string, string>();
+
+      if (type === 'category') {
+        const categories = await getCategories('expense');
+        categories.forEach(c => {
+          iconMap.set(c.name, c.icon);
+        });
+      } else {
+        const members = await getMembers();
+        members.forEach(m => {
+          iconMap.set(m.name, '👤');
+        });
       }
-    ],
-    legend: ["Income", "Expenses"]
+
+      filteredTransactions.forEach(t => {
+        if (t.type === 'expense' && !t.refunded) {
+          const key = type === 'category' ? t.category : t.member;
+          const currentAmount = groupedStats.get(key) || 0;
+          groupedStats.set(key, currentAmount + Math.abs(t.amount));
+        }
+      });
+
+      // 转换为数组并排序
+      const statsArray = Array.from(groupedStats.entries())
+        .map(([name, amount]) => ({
+          name,
+          amount,
+          icon: iconMap.get(name) || '📊',
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      const total = statsArray.reduce((sum, item) => sum + item.amount, 0);
+      setTotalAmount(total);
+      setStats(statsArray);
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
   };
 
-  return (
-    <View style={styles.container}>
+  useEffect(() => {
+    loadStats();
+  }, [period, type]);
 
-      <Text style={styles.statsTitle}>Statistics</Text>
-      
-      <View style={styles.periodToggle}>
-        <TouchableOpacity style={styles.activeToggle}>
-          <Text style={styles.activeToggleText}>Month</Text>
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(false);
+    if (date) {
+      setSelectedDate(date);
+      loadStats();
+    }
+  };
+
+  const getDateDisplay = () => {
+    if (period === 'month') {
+      return selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' });
+    }
+    return selectedDate.getFullYear().toString() + '年';
+  };
+
+  const showTransactionDetails = async (itemName: string) => {
+    try {
+      const transactions = await getTransactions();
+      const filteredTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        const matchDate = period === 'month'
+          ? transactionDate.getMonth() === selectedDate.getMonth() &&
+          transactionDate.getFullYear() === selectedDate.getFullYear()
+          : transactionDate.getFullYear() === selectedDate.getFullYear();
+
+        const matchType = t.type === 'expense' && !t.refunded;
+        const matchItem = type === 'category'
+          ? t.category === itemName
+          : t.member === itemName;
+
+        return matchDate && matchType && matchItem;
+      });
+
+      setSelectedTransactions(filteredTransactions);
+      setSelectedItemName(itemName);
+      setShowTransactions(true);
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+    }
+  };
+
+  const renderFilterChosen = () => {
+    return <View style={styles.filterRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <TouchableOpacity
+          style={[styles.filterButton, type === 'member' && styles.activeFilterButton]}
+          onPress={() => setType('member')}
+        >
+          <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
+            Member
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.toggle}>
-          <Text style={styles.toggleText}>Year</Text>
+        <TouchableOpacity
+          style={[styles.filterButton, type === 'category' && styles.activeFilterButton]}
+          onPress={() => setType('category')}
+        >
+          <Text style={[styles.filterText, type === 'category' && styles.activeFilterText]}>
+            Category
+          </Text>
         </TouchableOpacity>
-      </View>
-
-      <Text style={styles.chartTitle}>Income vs Expenses</Text>
-      <Text style={styles.subtitle}>Monthly Overview</Text>
-
-      <LineChart
-        data={data}
-        width={Dimensions.get('window').width - 40}
-        height={220}
-        chartConfig={{
-          backgroundColor: '#fff',
-          backgroundGradientFrom: '#fff',
-          backgroundGradientTo: '#fff',
-          decimalPlaces: 0,
-          color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-          style: {
-            borderRadius: 16
-          }
-        }}
-        style={styles.chart}
-        bezier
-      />
-
-      <Text style={styles.categoryTitle}>Spending Categories</Text>
-      <View style={styles.categoryList}>
-        <View style={styles.categoryItem}>
-          <View style={styles.categoryLeft}>
-            <View style={styles.categoryIcon}>
-              <Text>🛍️</Text>
-            </View>
-            <Text style={styles.categoryName}>Shopping</Text>
-          </View>
-          <Text style={styles.categoryAmount}>$845.50</Text>
-        </View>
-        <View style={styles.categoryItem}>
-          <View style={styles.categoryLeft}>
-            <View style={styles.categoryIcon}>
-              <Text>🍽️</Text>
-            </View>
-            <Text style={styles.categoryName}>Food & Drinks</Text>
-          </View>
-          <Text style={styles.categoryAmount}>$650.20</Text>
-        </View>
-      </View>
+        <TouchableOpacity
+          style={[styles.filterButton, type === 'tag' && styles.activeFilterButton]}
+          onPress={() => setType('tag')}
+        >
+          <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
+            Tag
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
+  }
+
+
+  const renderTransactionModal = () => (
+    <Modal
+      visible={showTransactions}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowTransactions(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{selectedItemName}的支出明细</Text>
+            <TouchableOpacity onPress={() => setShowTransactions(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.transactionList}>
+            {selectedTransactions.map((transaction, index) => (
+              <View key={index} style={styles.transactionItem}>
+                <View style={styles.transactionLeft}>
+                  <Text style={styles.transactionIcon}>{transaction.categoryIcon}</Text>
+                  <View>
+                    <Text style={styles.transactionCategory}>{transaction.category}</Text>
+                    <Text style={styles.transactionDate}>
+                      {new Date(transaction.date).toLocaleDateString()}
+                    </Text>
+                    {transaction.note && (
+                      <Text style={styles.transactionNote}>{transaction.note}</Text>
+                    )}
+                  </View>
+                </View>
+                <Text style={styles.transactionAmount}>
+                  -¥{Math.abs(transaction.amount).toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+
+        <View style={styles.dateRow}>
+          <TouchableOpacity
+            style={styles.yearSelector}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.yearText}>{selectedDate.getFullYear()}</Text>
+            <Ionicons name="chevron-down" size={20} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.monthSelector}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.monthText}>
+              {selectedDate.toLocaleString('en-US', { month: 'long' })}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#333" />
+          </TouchableOpacity>
+          <View style={styles.periodButtons}>
+            <TouchableOpacity
+              style={[styles.periodButton, period === 'month' && styles.activePeriodButton]}
+              onPress={() => setPeriod('month')}
+            >
+              <Text style={[styles.periodText, period === 'month' && styles.activePeriodText]}>
+                Month
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.periodButton, period === 'year' && styles.activePeriodButton]}
+              onPress={() => setPeriod('year')}
+            >
+              <Text style={[styles.periodText, period === 'year' && styles.activePeriodText]}>
+                Year
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {renderFilterChosen()}
+
+      {/* <View style={styles.statsCards}>
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>Total Balance</Text>
+          <Text style={styles.balanceAmount}>¥{monthlyStats.balance.toFixed(2)}</Text>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statsCard}>
+            <Text style={styles.statsLabel}>Income</Text>
+            <Text style={styles.incomeAmount}>¥{monthlyStats.income.toFixed(2)}</Text>
+            <View style={styles.changeRow}>
+              <View style={[styles.changeIcon, { backgroundColor: '#e8f5e9' }]}>
+                <Ionicons name="arrow-up" size={16} color="#4caf50" />
+              </View>
+              <Text style={[styles.changeText, { color: '#4caf50' }]}>
+                +{monthlyStats.incomeChange.toFixed(1)}%
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statsCard}>
+            <Text style={styles.statsLabel}>Expenses</Text>
+            <Text style={styles.expenseAmount}>¥{monthlyStats.expense.toFixed(2)}</Text>
+            <View style={styles.changeRow}>
+              <View style={[styles.changeIcon, { backgroundColor: '#ffebee' }]}>
+                <Ionicons name="arrow-down" size={16} color="#dc4446" />
+              </View>
+              <Text style={[styles.changeText, { color: '#dc4446' }]}>
+                +{monthlyStats.expenseChange.toFixed(1)}%
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View> */}
+
+      <View style={styles.categoriesSection}>
+        <Text style={styles.sectionTitle}>Spending Categories</Text>
+        <View style={styles.statsList}>
+          {stats.map((item, index) => {
+            const percentage = (item.amount / totalAmount) * 100;
+            return (
+              <TouchableOpacity
+                key={index}
+                style={styles.statItem}
+                onPress={() => showTransactionDetails(item.name)}
+              >
+                <View style={styles.statHeader}>
+                  <View style={styles.statLeft}>
+                    <Text style={styles.statIcon}>{item.icon}</Text>
+                    <Text style={styles.statName}>{item.name}</Text>
+                  </View>
+                  <Text style={styles.statAmount}>¥{item.amount.toFixed(2)}</Text>
+                </View>
+                <View style={styles.progressBarContainer}>
+                  <View style={[styles.progressBar, { width: `${percentage}%` }]} />
+                </View>
+                <Text style={styles.percentage}>{percentage.toFixed(1)}%</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode={period === 'month' ? 'date' : 'countdown'}
+          onChange={handleDateChange}
+        />
+      )}
+
+      {renderTransactionModal()}
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
+    // backgroundColor: 'white',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 40,
-    marginBottom: 20,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    // margin: 20,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-  },
-  statsTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  periodToggle: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  toggle: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  activeToggle: {
-    backgroundColor: '#4285f4',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
-  toggleText: {
-    color: '#666',
-  },
-  activeToggleText: {
-    color: '#fff',
-  },
-  chartTitle: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '600',
     marginBottom: 20,
   },
-  chart: {
-    marginVertical: 8,
+  filterRow: {
+    marginTop: 20,
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginRight: 12,
+    borderRadius: 20,
+  },
+  activeFilterButton: {
+    backgroundColor: '#dc4446',
+  },
+  filterText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  activeFilterText: {
+    color: 'white',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  yearSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  yearText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  periodButtons: {
+    flexDirection: 'row',
+    marginLeft: 'auto',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    padding: 4,
+  },
+  periodButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 16,
   },
+  activePeriodButton: {
+    backgroundColor: '#dc4446',
+  },
+  periodText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  activePeriodText: {
+    color: 'white',
+  },
   statsCards: {
+    padding: 20,
+  },
+  balanceCard: {
+    marginBottom: 20,
+  },
+  balanceLabel: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 32,
+    fontWeight: '600',
+  },
+  statsRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginVertical: 24,
+    gap: 20,
   },
   statsCard: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
     padding: 16,
-    borderRadius: 12,
-  },
-  incomeCard: {
-    backgroundColor: '#E8F5E9',
-  },
-  expenseCard: {
-    backgroundColor: '#FFEBEE',
-  },
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  trendText: {
-    color: '#4CAF50',
-    marginLeft: 4,
-  },
-  expenseTrend: {
-    color: '#FF5252',
+    borderRadius: 16,
   },
   statsLabel: {
+    fontSize: 14,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  statsValue: {
+  incomeAmount: {
     fontSize: 20,
     fontWeight: '600',
+    color: '#4caf50',
+    marginBottom: 8,
   },
-  categoryTitle: {
+  expenseAmount: {
     fontSize: 20,
     fontWeight: '600',
-    marginBottom: 16,
+    color: '#dc4446',
+    marginBottom: 8,
   },
-  categoryList: {
-    gap: 12,
-  },
-  categoryItem: {
+  changeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#f5f5f5',
+    gap: 8,
+  },
+  changeIcon: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
-  },
-  categoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#fff',
-    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryName: {
-    fontSize: 16,
+  changeText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  categoryAmount: {
+  categoriesSection: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    gap: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  statsList: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    gap: 16,
+  },
+  statItem: {
+    gap: 8,
+  },
+  statHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statIcon: {
+    fontSize: 20,
+  },
+  statName: {
+    fontSize: 16,
+    color: '#333',
+  },
+  statAmount: {
     fontSize: 16,
     fontWeight: '500',
+    color: '#333',
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#dc4446',
+    borderRadius: 2,
+  },
+  percentage: {
+    fontSize: 12,
+    color: '#666',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  transactionList: {
+    padding: 16,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  transactionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  transactionIcon: {
+    fontSize: 24,
+  },
+  transactionCategory: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 4,
+  },
+  transactionDate: {
+    fontSize: 14,
+    color: '#666',
+  },
+  transactionNote: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#dc4446',
   },
 });
 
