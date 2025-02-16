@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { getTransactions, getMembers, getCategories, getTags } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
-import i18n from '../i18n';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-type StatsType = 'member' | 'category' | 'tag';
+type StatsType = 'tag' | 'member' | 'category';
 type StatsPeriod = 'month' | 'year';
 
 interface StatItem {
@@ -145,16 +144,28 @@ const Stats = () => {
         // 按类型分组统计
         const iconMap = new Map<string, string>();
 
-        if (type === 'category') {
-          const categories = await getCategories('expense');
-          categories.forEach(c => {
-            iconMap.set(c.name, c.icon);
-          });
-        } else {
-          const members = await getMembers();
-          members.forEach(m => {
-            iconMap.set(m.name, '👤');
-          });
+        switch (type) {
+          case 'member':
+            const members = await getMembers();
+            console.log(members);
+            members.forEach(m => {
+              iconMap.set(m.name, '👤');
+            });
+            break;
+          case 'tag':
+            const tags = await getTags();
+            console.log(tags);
+            tags.forEach(t => {
+              iconMap.set(t.name, t.color);
+            });
+            break;
+          default:
+          case 'category':
+            const categories = await getCategories('expense');
+            categories.forEach(c => {
+              iconMap.set(c.name, c.icon);
+            });
+            break;
         }
 
         filteredTransactions.forEach(t => {
@@ -245,14 +256,7 @@ const Stats = () => {
   const renderFilterChosen = () => {
     return <View style={styles.filterRow}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <TouchableOpacity
-          style={[styles.filterButton, type === 'member' && styles.activeFilterButton]}
-          onPress={() => setType('member')}
-        >
-          <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
-            Member
-          </Text>
-        </TouchableOpacity>
+
         <TouchableOpacity
           style={[styles.filterButton, type === 'category' && styles.activeFilterButton]}
           onPress={() => setType('category')}
@@ -267,6 +271,14 @@ const Stats = () => {
         >
           <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
             Tag
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, type === 'member' && styles.activeFilterButton]}
+          onPress={() => setType('member')}
+        >
+          <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
+            Member
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -350,22 +362,6 @@ const Stats = () => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.dateRow}>
-          <TouchableOpacity
-            style={styles.yearSelector}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text style={styles.yearText}>{selectedDate.getFullYear()}</Text>
-            <Ionicons name="chevron-down" size={20} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.monthSelector}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text style={styles.monthText}>
-              {selectedDate.toLocaleString('en-US', { month: 'long' })}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color="#333" />
-          </TouchableOpacity>
           <View style={styles.periodButtons}>
             <TouchableOpacity
               style={[styles.periodButton, period === 'month' && styles.activePeriodButton]}
@@ -384,6 +380,12 @@ const Stats = () => {
               </Text>
             </TouchableOpacity>
           </View>
+          <DateTimePicker
+            value={selectedDate}
+            mode='date'
+            display='compact'
+            onChange={handleDateChange}
+          />
         </View>
       </View>
 
@@ -401,14 +403,6 @@ const Stats = () => {
           ))}
         </View>
       </View>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode={period === 'month' ? 'date' : 'countdown'}
-          onChange={handleDateChange}
-        />
-      )}
 
       {renderTransactionModal()}
     </ScrollView>
@@ -478,7 +472,6 @@ const styles = StyleSheet.create({
   },
   periodButtons: {
     flexDirection: 'row',
-    marginLeft: 'auto',
     backgroundColor: '#f5f5f5',
     borderRadius: 20,
     padding: 4,
