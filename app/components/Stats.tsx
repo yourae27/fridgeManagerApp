@@ -294,34 +294,31 @@ const Stats = () => {
 
   const renderFilterChosen = () => {
     return <View style={styles.filterRow}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-
-        <TouchableOpacity
-          style={[styles.filterButton, type === 'category' && styles.activeFilterButton]}
-          onPress={() => setType('category')}
-        >
-          <Text style={[styles.filterText, type === 'category' && styles.activeFilterText]}>
-            种类
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, type === 'tag' && styles.activeFilterButton]}
-          onPress={() => setType('tag')}
-        >
-          <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
-            标签
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, type === 'member' && styles.activeFilterButton]}
-          onPress={() => setType('member')}
-        >
-          <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
-            成员
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+      <TouchableOpacity
+        style={[styles.filterButton, type === 'category' && styles.activeFilterButton]}
+        onPress={() => setType('category')}
+      >
+        <Text style={[styles.filterText, type === 'category' && styles.activeFilterText]}>
+          种类
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.filterButton, type === 'tag' && styles.activeFilterButton]}
+        onPress={() => setType('tag')}
+      >
+        <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
+          标签
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.filterButton, type === 'member' && styles.activeFilterButton]}
+        onPress={() => setType('member')}
+      >
+        <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
+          成员
+        </Text>
+      </TouchableOpacity>
+    </View >
   }
 
   const renderTransactionModal = () => (
@@ -482,18 +479,20 @@ const Stats = () => {
         )}
       </View>
 
-      {renderFilterChosen()}
+      <View style={styles.statsContainer}>
+        {renderFilterChosen()}
 
-      <View style={styles.categoriesSection}>
-        <Text style={styles.sectionTitle}>
-          {type === 'category' ? '支出分类' : type === 'member' ? '成员支出' : '标签支出'}
-        </Text>
-        <View style={styles.statsList}>
-          {stats.map((item, index) => (
-            <View key={`${item.name}-${index}`}>
-              {renderStatItem(item)}
-            </View>
-          ))}
+        <View style={styles.categoriesSection}>
+          <Text style={styles.sectionTitle}>
+            {type === 'category' ? '支出分类' : type === 'member' ? '成员支出' : '标签支出'}
+          </Text>
+          <View style={styles.statsList}>
+            {stats.map((item, index) => (
+              <View key={`${item.name}-${index}`}>
+                {renderStatItem(item)}
+              </View>
+            ))}
+          </View>
         </View>
       </View>
 
@@ -505,7 +504,6 @@ const Stats = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: 'white',
   },
   header: {
     padding: 16,
@@ -519,7 +517,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   filterRow: {
-    marginTop: 10,
+    flexDirection: 'row',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    padding: 4,
+    alignSelf: 'flex-start',
   },
   filterButton: {
     paddingVertical: 8,
@@ -781,6 +783,12 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
   },
+  statsContainer: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 16,
+  }
 });
 
 export default Stats; 

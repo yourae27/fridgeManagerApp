@@ -368,6 +368,9 @@ const Add = () => {
           mode="date"
           display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
           onChange={onDateChange}
+          textColor="#333"
+          accentColor="#dc4446"
+          themeVariant="light"
           maximumDate={new Date()}
         />
       )}
