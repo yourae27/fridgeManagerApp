@@ -60,7 +60,6 @@ const Stats = () => {
   const loadStats = async () => {
     try {
       const transactions = await getTransactions();
-      const currentDate = new Date();
 
       // 筛选符合时间范围的交易
       const filteredTransactions = transactions.filter(t => {
@@ -155,7 +154,6 @@ const Stats = () => {
         switch (type) {
           case 'member':
             const members = await getMembers();
-            console.log(members);
             members.forEach(m => {
               iconMap.set(m.name, '👤');
             });
@@ -218,25 +216,23 @@ const Stats = () => {
 
   useEffect(() => {
     loadStats();
-  }, [period, type]);
+  }, [period, type, selectedDate]);
 
   const handleDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false);
     if (date) {
       setSelectedDate(date);
-      loadStats();
     }
   };
 
   const handleCustomDateChange = (event: any, date?: Date) => {
-    setShowCustomDatePicker(false);
+    setShowDatePicker(false);
     if (date) {
       if (datePickerMode === 'start') {
         setCustomStartDate(date);
       } else {
         setCustomEndDate(date);
       }
-      loadStats();
     }
   };
 
@@ -258,6 +254,14 @@ const Stats = () => {
     }
     return true;
   };
+
+  useEffect(() => {
+    if (period === 'custom') {
+      if (validateCustomDateRange()) {
+        loadStats();
+      }
+    }
+  }, [customStartDate, customEndDate]);
 
   const getDateDisplay = () => {
     if (period === 'month') {
