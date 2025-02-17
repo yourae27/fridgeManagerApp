@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, SetStateAction } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert } from 'react-native';
 import { getTransactions, getMembers, getCategories, getTags } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -240,6 +240,11 @@ const Stats = () => {
     }
   };
 
+  const handleCustomDatePanelClicked = (custommode: 'start' | 'end') => {
+    setShowDatePicker(!showDatePicker);
+    setDatePickerMode(custommode);
+  };
+
   const validateCustomDateRange = () => {
     const diffTime = Math.abs(customEndDate.getTime() - customStartDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -296,7 +301,7 @@ const Stats = () => {
           onPress={() => setType('category')}
         >
           <Text style={[styles.filterText, type === 'category' && styles.activeFilterText]}>
-            Category
+            种类
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -304,7 +309,7 @@ const Stats = () => {
           onPress={() => setType('tag')}
         >
           <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
-            Tag
+            标签
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -312,7 +317,7 @@ const Stats = () => {
           onPress={() => setType('member')}
         >
           <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
-            Member
+            成员
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -392,89 +397,89 @@ const Stats = () => {
     </TouchableOpacity>
   );
 
-  const renderDateSelector = () => {
-    if (period === 'custom') {
-      return (
-        <View style={styles.customDateRow}>
-          <DateTimePicker
-            value={customStartDate}
-            mode='date'
-            display='default'
-            onChange={handleCustomDateChange}
-            maximumDate={new Date()}
-          />
-          <Text> - </Text>
-          <DateTimePicker
-            value={customEndDate}
-            mode='date'
-            display='default'
-            onChange={handleCustomDateChange}
-            maximumDate={new Date()}
-          />
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.dateSelector}>
-        <TouchableOpacity
-          style={styles.dateSelectorButton}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={styles.dateSelectorText}>
-            {period === 'month'
-              ? selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' })
-              : `${selectedDate.getFullYear()}年`
-            }
-          </Text>
-          <Ionicons name="calendar-outline" size={20} color="#666" />
-        </TouchableOpacity>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={selectedDate}
-            mode={period === 'month' ? 'date' : 'date'}
-            display='default'
-            onChange={handleDateChange}
-            maximumDate={new Date()}
-          />
-        )}
-      </View>
-    );
-  };
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.dateRow}>
-          <View style={styles.periodButtons}>
-            <TouchableOpacity
-              style={[styles.periodButton, period === 'month' && styles.activePeriodButton]}
-              onPress={() => setPeriod('month')}
-            >
-              <Text style={[styles.periodText, period === 'month' && styles.activePeriodText]}>
-                月度
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.periodButton, period === 'year' && styles.activePeriodButton]}
-              onPress={() => setPeriod('year')}
-            >
-              <Text style={[styles.periodText, period === 'year' && styles.activePeriodText]}>
-                年度
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.periodButton, period === 'custom' && styles.activePeriodButton]}
-              onPress={() => setPeriod('custom')}
-            >
-              <Text style={[styles.periodText, period === 'custom' && styles.activePeriodText]}>
-                自定义
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {renderDateSelector()}
+        <View style={styles.periodButtons}>
+          <TouchableOpacity
+            style={[styles.periodButton, period === 'month' && styles.activePeriodButton]}
+            onPress={() => setPeriod('month')}
+          >
+            <Text style={[styles.periodText, period === 'month' && styles.activePeriodText]}>
+              月度
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.periodButton, period === 'year' && styles.activePeriodButton]}
+            onPress={() => setPeriod('year')}
+          >
+            <Text style={[styles.periodText, period === 'year' && styles.activePeriodText]}>
+              年度
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.periodButton, period === 'custom' && styles.activePeriodButton]}
+            onPress={() => setPeriod('custom')}
+          >
+            <Text style={[styles.periodText, period === 'custom' && styles.activePeriodText]}>
+              自定义
+            </Text>
+          </TouchableOpacity>
         </View>
+
+        <View style={styles.datePickerSection}>
+          {period === 'custom' ? (
+            <View style={styles.dateRow}>
+              <TouchableOpacity
+                style={[styles.dateSelectorButton, datePickerMode === 'start' && styles.activeDateButton]}
+                onPress={() => handleCustomDatePanelClicked('start')}
+              >
+                <Text style={styles.dateSelectorText}>
+                  {customStartDate.toLocaleDateString('zh-CN')}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+              </TouchableOpacity>
+              <Text style={styles.dateRangeSeparator}>至</Text>
+              <TouchableOpacity
+                style={[styles.dateSelectorButton, datePickerMode === 'end' && styles.activeDateButton]}
+                onPress={() => handleCustomDatePanelClicked('end')}
+              >
+                <Text style={styles.dateSelectorText}>
+                  {customEndDate.toLocaleDateString('zh-CN')}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.dateSelectorButton, showDatePicker && styles.activeDateButton]}
+              onPress={() => setShowDatePicker(!showDatePicker)}
+            >
+              <Text style={styles.dateSelectorText}>
+                {period === 'month'
+                  ? selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' })
+                  : `${selectedDate.getFullYear()}年`
+                }
+              </Text>
+              <Ionicons name="calendar-outline" size={20} color="#666" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {showDatePicker && (
+          <View style={styles.datePickerContainer}>
+            <DateTimePicker
+              value={period === 'custom' ? (datePickerMode === 'start' ? customStartDate : customEndDate) : selectedDate}
+              mode="date"
+              display="inline"
+              onChange={period === 'custom' ? handleCustomDateChange : handleDateChange}
+              maximumDate={new Date()}
+              textColor="#333"
+              accentColor="#dc4446"
+              themeVariant="light"
+            />
+          </View>
+        )}
       </View>
 
       {renderFilterChosen()}
@@ -503,7 +508,10 @@ const styles = StyleSheet.create({
     // backgroundColor: 'white',
   },
   header: {
-    // margin: 20,
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 16,
   },
   title: {
     fontSize: 28,
@@ -529,39 +537,52 @@ const styles = StyleSheet.create({
   activeFilterText: {
     color: 'white',
   },
+  datePickerSection: {
+    marginTop: 16,
+  },
   dateRow: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  yearSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    gap: 8,
   },
-  monthSelector: {
+  dateSelectorButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    padding: 8,
-    borderRadius: 8,
+    justifyContent: 'center',
     backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
   },
-  yearText: {
+  activeDateButton: {
+    backgroundColor: '#fff1f1',
+    borderColor: '#dc4446',
+    borderWidth: 1,
+  },
+  dateRangeSeparator: {
+    color: '#666',
     fontSize: 16,
+  },
+  dateSelectorText: {
+    fontSize: 16,
+    color: '#333',
     fontWeight: '500',
   },
-  monthText: {
-    fontSize: 16,
-    fontWeight: '500',
+  datePickerContainer: {
+    marginTop: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   periodButtons: {
     flexDirection: 'row',
     backgroundColor: '#f5f5f5',
     borderRadius: 20,
     padding: 4,
+    alignSelf: 'flex-start',
   },
   periodButton: {
     paddingVertical: 6,
@@ -759,30 +780,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-  },
-  dateSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  dateSelectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 8,
-    borderRadius: 8,
-    gap: 8,
-  },
-  dateSelectorText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  customDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
   },
 });
 
