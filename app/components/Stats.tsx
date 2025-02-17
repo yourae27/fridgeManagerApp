@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert } from 'react-native';
 import { getTransactions, getMembers, getCategories, getTags } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type StatsType = 'tag' | 'member' | 'category';
-type StatsPeriod = 'month' | 'year';
+type StatsPeriod = 'month' | 'year' | 'custom';
 
 interface StatItem {
   name: string;
@@ -44,6 +44,10 @@ const Stats = () => {
   const [showTransactions, setShowTransactions] = useState(false);
   const [selectedItemName, setSelectedItemName] = useState('');
   const [tags, setTags] = useState<Tag[]>([]);
+  const [customStartDate, setCustomStartDate] = useState(new Date());
+  const [customEndDate, setCustomEndDate] = useState(new Date());
+  const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
   const [monthlyStats, setMonthlyStats] = useState({
     balance: 0,
@@ -64,8 +68,12 @@ const Stats = () => {
         if (period === 'month') {
           return transactionDate.getMonth() === selectedDate.getMonth() &&
             transactionDate.getFullYear() === selectedDate.getFullYear();
-        } else {
+        } else if (period === 'year') {
           return transactionDate.getFullYear() === selectedDate.getFullYear();
+        } else {
+          // 自定义时间段
+          return transactionDate >= customStartDate &&
+            transactionDate <= customEndDate;
         }
       });
 
@@ -220,6 +228,32 @@ const Stats = () => {
     }
   };
 
+  const handleCustomDateChange = (event: any, date?: Date) => {
+    setShowCustomDatePicker(false);
+    if (date) {
+      if (datePickerMode === 'start') {
+        setCustomStartDate(date);
+      } else {
+        setCustomEndDate(date);
+      }
+      loadStats();
+    }
+  };
+
+  const validateCustomDateRange = () => {
+    const diffTime = Math.abs(customEndDate.getTime() - customStartDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 365) {
+      Alert.alert('提示', '时间跨度不能超过一年');
+      return false;
+    }
+    if (customEndDate < customStartDate) {
+      Alert.alert('提示', '结束日期不能早于开始日期');
+      return false;
+    }
+    return true;
+  };
+
   const getDateDisplay = () => {
     if (period === 'month') {
       return selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' });
@@ -358,6 +392,57 @@ const Stats = () => {
     </TouchableOpacity>
   );
 
+  const renderDateSelector = () => {
+    if (period === 'custom') {
+      return (
+        <View style={styles.customDateRow}>
+          <DateTimePicker
+            value={customStartDate}
+            mode='date'
+            display='default'
+            onChange={handleCustomDateChange}
+            maximumDate={new Date()}
+          />
+          <Text> - </Text>
+          <DateTimePicker
+            value={customEndDate}
+            mode='date'
+            display='default'
+            onChange={handleCustomDateChange}
+            maximumDate={new Date()}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.dateSelector}>
+        <TouchableOpacity
+          style={styles.dateSelectorButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text style={styles.dateSelectorText}>
+            {period === 'month'
+              ? selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' })
+              : `${selectedDate.getFullYear()}年`
+            }
+          </Text>
+          <Ionicons name="calendar-outline" size={20} color="#666" />
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode={period === 'month' ? 'date' : 'date'}
+            display='default'
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+          />
+        )}
+      </View>
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -368,7 +453,7 @@ const Stats = () => {
               onPress={() => setPeriod('month')}
             >
               <Text style={[styles.periodText, period === 'month' && styles.activePeriodText]}>
-                Month
+                月度
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -376,16 +461,19 @@ const Stats = () => {
               onPress={() => setPeriod('year')}
             >
               <Text style={[styles.periodText, period === 'year' && styles.activePeriodText]}>
-                Year
+                年度
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.periodButton, period === 'custom' && styles.activePeriodButton]}
+              onPress={() => setPeriod('custom')}
+            >
+              <Text style={[styles.periodText, period === 'custom' && styles.activePeriodText]}>
+                自定义
               </Text>
             </TouchableOpacity>
           </View>
-          <DateTimePicker
-            value={selectedDate}
-            mode='date'
-            display='compact'
-            onChange={handleDateChange}
-          />
+          {renderDateSelector()}
         </View>
       </View>
 
@@ -423,11 +511,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   filterRow: {
-    marginTop: 20,
+    marginTop: 10,
   },
   filterButton: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     marginRight: 12,
     borderRadius: 20,
   },
@@ -435,16 +523,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc4446',
   },
   filterText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
   },
   activeFilterText: {
     color: 'white',
   },
   dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   yearSelector: {
     flexDirection: 'row',
@@ -672,6 +759,30 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
+  },
+  dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  dateSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 8,
+    borderRadius: 8,
+    gap: 8,
+  },
+  dateSelectorText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  customDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
   },
 });
 
