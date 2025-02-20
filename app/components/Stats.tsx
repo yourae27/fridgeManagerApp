@@ -4,7 +4,7 @@ import { getTransactions, getMembers, getCategories, getTags } from '../constant
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
-type StatsType = 'tag' | 'member' | 'category';
+type StatsType = 'category' | 'member' | 'tag';
 type StatsPeriod = 'month' | 'year' | 'custom';
 
 interface StatItem {
@@ -78,6 +78,7 @@ const Stats = () => {
 
       // 按类型分组统计
       const groupedStats = new Map<string, number>();
+      const iconMap = new Map<string, string>();
 
       if (type === 'tag') {
         // 加载标签数据
@@ -92,6 +93,7 @@ const Stats = () => {
               if (tag) {
                 const currentAmount = groupedStats.get(tag.name) || 0;
                 groupedStats.set(tag.name, currentAmount + Math.abs(t.amount));
+                iconMap.set(tag.name, tag.color);
               }
             });
           }
@@ -149,8 +151,6 @@ const Stats = () => {
         });
 
         // 按类型分组统计
-        const iconMap = new Map<string, string>();
-
         switch (type) {
           case 'member':
             const members = await getMembers();
@@ -158,14 +158,6 @@ const Stats = () => {
               iconMap.set(m.name, '👤');
             });
             break;
-          case 'tag':
-            const tags = await getTags();
-            console.log(tags);
-            tags.forEach(t => {
-              iconMap.set(t.name, t.color);
-            });
-            break;
-          default:
           case 'category':
             const categories = await getCategories('expense');
             categories.forEach(c => {
@@ -185,25 +177,12 @@ const Stats = () => {
 
       // 转换为数组并排序
       const statsArray = Array.from(groupedStats.entries())
-        .map(([name, amount]) => {
-          let icon = '📊';
-          let color = '#666';
-
-          if (type === 'tag') {
-            const tag = tags.find(t => t.name === name);
-            if (tag) {
-              color = tag.color;
-            }
-          }
-          // ... 其他类型的图标和颜色处理保持不变
-
-          return {
-            name,
-            amount,
-            icon,
-            color,
-          };
-        })
+        .map(([name, amount]) => ({
+          name,
+          amount,
+          icon: iconMap.get(name) || '📊',
+          color: type === 'tag' ? iconMap.get(name) : '#666'
+        }))
         .sort((a, b) => b.amount - a.amount);
 
       const total = statsArray.reduce((sum, item) => sum + item.amount, 0);
@@ -374,9 +353,10 @@ const Stats = () => {
     >
       <View style={styles.statHeader}>
         <View style={styles.statLeft}>
-          {type === 'tag' ? (
+          {type === 'tag' && (
             <View style={[styles.tagIcon, { backgroundColor: item.color }]} />
-          ) : (
+          )}
+          {type === 'category' && (
             <Text style={styles.statIcon}>{item.icon}</Text>
           )}
           <Text style={styles.statName}>{item.name}</Text>
