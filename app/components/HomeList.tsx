@@ -56,6 +56,10 @@ const HomeList = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [showMemberSelector, setShowMemberSelector] = useState(false);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const PAGE_SIZE = 10;
 
   // 计算每日总计
   const calculateDailyTotal = (transactions: Transaction[]): DailyTotal => {
@@ -152,10 +156,13 @@ const HomeList = () => {
     };
   };
 
-  const loadTransactions = async () => {
+  const loadTransactions = async (reset = false) => {
+    if (isLoading || (!hasMore && !reset)) return;
+
     try {
+      setIsLoading(true);
+      const currentPage = reset ? 1 : page;
       const data = await getTransactions();
-      calculateMonthlyTotal(data);
 
       // 根据过滤条件筛选数据
       const filteredData = data.filter(transaction => {
@@ -164,8 +171,13 @@ const HomeList = () => {
         return typeMatch && memberMatch;
       });
 
+      // 分页处理
+      const startIndex = (currentPage - 1) * PAGE_SIZE;
+      const endIndex = startIndex + PAGE_SIZE;
+      const paginatedData = filteredData.slice(0, endIndex);
+
       // 按日期分组
-      const grouped = filteredData.reduce((groups: GroupedTransactions, transaction) => {
+      const grouped = paginatedData.reduce((groups: GroupedTransactions, transaction) => {
         const date = transaction.date;
         if (!groups[date]) {
           groups[date] = [];
@@ -174,22 +186,33 @@ const HomeList = () => {
         return groups;
       }, {});
 
-      // 对日期进行排序（倒序）
-      const sortedGroups = Object.fromEntries(
-        Object.entries(grouped).sort((a, b) => {
-          return new Date(b[0]).getTime() - new Date(a[0]).getTime();
-        })
-      );
+      // 更新状态
+      if (reset) {
+        setTransactions(grouped);
+        setPage(1);
+      } else {
+        setTransactions(prev => ({
+          ...prev,
+          ...grouped
+        }));
+        setPage(currentPage + 1);
+      }
 
-      setTransactions(sortedGroups);
+      // 检查是否还有更多数据
+      setHasMore(endIndex < filteredData.length);
+      calculateMonthlyTotal(data);
+
     } catch (error) {
       console.error('Failed to load transactions:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // 监听筛选条件变化
   useEffect(() => {
-    loadTransactions();
-  }, [refreshTrigger, activeFilter, selectedMembers]);
+    loadTransactions(true);
+  }, [activeFilter, selectedMembers, refreshTrigger]);
 
   // 关闭所有打开的左滑菜单
   const closeAllSwipeables = () => {
@@ -515,6 +538,22 @@ const HomeList = () => {
     </View>
   }
 
+  // 渲染加载更多
+  const renderFooter = () => {
+    if (!hasMore) return null;
+    return (
+      <TouchableOpacity
+        style={styles.loadMoreButton}
+        onPress={() => loadTransactions()}
+        disabled={isLoading}
+      >
+        <Text style={styles.loadMoreText}>
+          {isLoading ? '加载中...' : '加载更多'}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.container} onTouchStart={closeAllSwipeables}>
       {/* {renderButtonGroup()} */}
@@ -559,43 +598,56 @@ const HomeList = () => {
         <ScrollView
           style={styles.transactionList}
           onScrollBeginDrag={closeAllSwipeables}
+          onScroll={({ nativeEvent }) => {
+            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+            const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+
+            if (isCloseToBottom && !isLoading && hasMore) {
+              loadTransactions();
+            }
+          }}
+          scrollEventThrottle={400}
         >
-          {Object.entries(transactions).map(([date, items]) => (
-            <View key={date} style={styles.dateGroup}>
-              <View style={styles.dateHeader}>
-                <Text style={styles.dateText}>{formatDate(date)}</Text>
-                <View style={styles.dailyTotal}>
-                  {calculateDailyTotal(items).income > 0 && (
-                    <Text style={[styles.dailyTotalText, { color: '#FF9A2E' }]}>
-                      收入 ¥{calculateDailyTotal(items).income.toFixed(2)}
-                    </Text>
-                  )}
-                  {calculateDailyTotal(items).expense > 0 && (
-                    <Text style={[styles.dailyTotalText, { color: '#dc4446' }]}>
-                      支出 ¥{calculateDailyTotal(items).expense.toFixed(2)}
-                    </Text>
-                  )}
+          {Object.entries(transactions)
+            .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+            .map(([date, items]) => (
+              <View key={date} style={styles.dateGroup}>
+                <View style={styles.dateHeader}>
+                  <Text style={styles.dateText}>{formatDate(date)}</Text>
+                  <View style={styles.dailyTotal}>
+                    {calculateDailyTotal(items).income > 0 && (
+                      <Text style={[styles.dailyTotalText, { color: '#FF9A2E' }]}>
+                        收入 ¥{calculateDailyTotal(items).income.toFixed(2)}
+                      </Text>
+                    )}
+                    {calculateDailyTotal(items).expense > 0 && (
+                      <Text style={[styles.dailyTotalText, { color: '#dc4446' }]}>
+                        支出 ¥{calculateDailyTotal(items).expense.toFixed(2)}
+                      </Text>
+                    )}
+                  </View>
                 </View>
+                {items.map(transaction => (
+                  <Swipeable
+                    key={transaction.id}
+                    ref={ref => swipeableRefs.current[transaction.id] = ref}
+                    renderRightActions={() => renderRightActions(transaction)}
+                    onSwipeableWillOpen={() => {
+                      // 关闭其他打开的左滑菜单
+                      Object.entries(swipeableRefs.current).forEach(([id, ref]) => {
+                        if (Number(id) !== transaction.id) {
+                          ref?.close();
+                        }
+                      });
+                    }}
+                  >
+                    {renderTransactionItem(transaction)}
+                  </Swipeable>
+                ))}
               </View>
-              {items.map(transaction => (
-                <Swipeable
-                  key={transaction.id}
-                  ref={ref => swipeableRefs.current[transaction.id] = ref}
-                  renderRightActions={() => renderRightActions(transaction)}
-                  onSwipeableWillOpen={() => {
-                    // 关闭其他打开的左滑菜单
-                    Object.entries(swipeableRefs.current).forEach(([id, ref]) => {
-                      if (Number(id) !== transaction.id) {
-                        ref?.close();
-                      }
-                    });
-                  }}
-                >
-                  {renderTransactionItem(transaction)}
-                </Swipeable>
-              ))}
-            </View>
-          ))}
+            ))}
+
+          {renderFooter()}
         </ScrollView>
       </View>
     </View >
@@ -1067,6 +1119,14 @@ const styles = StyleSheet.create({
   moreTagsText: {
     fontSize: 10,
     color: '#666',
+  },
+  loadMoreButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: '#666',
+    fontSize: 14,
   },
 });
 

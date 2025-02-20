@@ -171,8 +171,10 @@ export const getFavorites = async (type: 'income' | 'expense') => {
     }>(`SELECT * FROM ${tableName} ORDER BY created_at DESC;`);
 };
 
-export const getTransactions = async () => {
+export const getTransactions = async (page = 1, pageSize = 10) => {
     const db = await getDB();
+    const offset = (page - 1) * pageSize;
+
     const transactions = await db.getAllAsync<{
         id: number;
         type: 'income' | 'expense';
@@ -184,7 +186,11 @@ export const getTransactions = async () => {
         created_at: string;
         refunded: boolean;
         member: string;
-    }>('SELECT * FROM transactions ORDER BY created_at DESC;');
+    }>(`
+        SELECT * FROM transactions 
+        ORDER BY date DESC, created_at DESC 
+        LIMIT ? OFFSET ?
+    `, [pageSize, offset]);
 
     // 获取每个交易的标签
     const transactionsWithTags = await Promise.all(
