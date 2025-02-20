@@ -1,6 +1,6 @@
 import React, { useState, useEffect, SetStateAction } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert } from 'react-native';
-import { getTransactions, getMembers, getCategories, getTags } from '../constants/Storage';
+import { getTransactions, getMembers, getCategories, getTags, getStats } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -59,135 +59,20 @@ const Stats = () => {
 
   const loadStats = async () => {
     try {
-      const transactions = await getTransactions();
+      const result = await getStats(
+        period,
+        type,
+        selectedDate,
+        period === 'custom' ? {
+          start: customStartDate,
+          end: customEndDate
+        } : undefined
+      );
 
-      // 筛选符合时间范围的交易
-      const filteredTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        if (period === 'month') {
-          return transactionDate.getMonth() === selectedDate.getMonth() &&
-            transactionDate.getFullYear() === selectedDate.getFullYear();
-        } else if (period === 'year') {
-          return transactionDate.getFullYear() === selectedDate.getFullYear();
-        } else {
-          // 自定义时间段
-          return transactionDate >= customStartDate &&
-            transactionDate <= customEndDate;
-        }
-      });
+      setStats(result.stats);
+      setMonthlyStats(result.monthlyStats);
+      setTotalAmount(result.stats.reduce((sum, item) => sum + item.amount, 0));
 
-      // 按类型分组统计
-      const groupedStats = new Map<string, number>();
-      const iconMap = new Map<string, string>();
-
-      if (type === 'tag') {
-        // 加载标签数据
-        const tagData = await getTags();
-        setTags(tagData);
-
-        // 统计每个标签的支出总额
-        filteredTransactions.forEach(t => {
-          if (t.type === 'expense' && !t.refunded && t.tags) {
-            t.tags.forEach(tagId => {
-              const tag = tagData.find(tag => tag.id === tagId);
-              if (tag) {
-                const currentAmount = groupedStats.get(tag.name) || 0;
-                groupedStats.set(tag.name, currentAmount + Math.abs(t.amount));
-                iconMap.set(tag.name, tag.color);
-              }
-            });
-          }
-        });
-      } else {
-        // 计算当前月份的收支
-        const currentMonthTransactions = transactions.filter(t => {
-          const transactionDate = new Date(t.date);
-          return transactionDate.getMonth() === selectedDate.getMonth() &&
-            transactionDate.getFullYear() === selectedDate.getFullYear();
-        });
-
-        const currentStats = currentMonthTransactions.reduce((acc, t) => {
-          if (!t.refunded) {
-            if (t.type === 'income') {
-              acc.income += Math.abs(t.amount);
-            } else {
-              acc.expense += Math.abs(t.amount);
-            }
-          }
-          return acc;
-        }, { income: 0, expense: 0 });
-
-        // 计算上个月的收支用于计算变化率
-        const lastMonth = new Date(selectedDate);
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-
-        const lastMonthTransactions = transactions.filter(t => {
-          const transactionDate = new Date(t.date);
-          return transactionDate.getMonth() === lastMonth.getMonth() &&
-            transactionDate.getFullYear() === lastMonth.getFullYear();
-        });
-
-        const lastStats = lastMonthTransactions.reduce((acc, t) => {
-          if (!t.refunded) {
-            if (t.type === 'income') {
-              acc.income += Math.abs(t.amount);
-            } else {
-              acc.expense += Math.abs(t.amount);
-            }
-          }
-          return acc;
-        }, { income: 0, expense: 0 });
-
-        // 计算变化率
-        const incomeChange = lastStats.income ? ((currentStats.income - lastStats.income) / lastStats.income) * 100 : 0;
-        const expenseChange = lastStats.expense ? ((currentStats.expense - lastStats.expense) / lastStats.expense) * 100 : 0;
-
-        setMonthlyStats({
-          balance: currentStats.income - currentStats.expense,
-          income: currentStats.income,
-          expense: currentStats.expense,
-          incomeChange,
-          expenseChange
-        });
-
-        // 按类型分组统计
-        switch (type) {
-          case 'member':
-            const members = await getMembers();
-            members.forEach(m => {
-              iconMap.set(m.name, '👤');
-            });
-            break;
-          case 'category':
-            const categories = await getCategories('expense');
-            categories.forEach(c => {
-              iconMap.set(c.name, c.icon);
-            });
-            break;
-        }
-
-        filteredTransactions.forEach(t => {
-          if (t.type === 'expense' && !t.refunded) {
-            const key = type === 'category' ? t.category : t.member;
-            const currentAmount = groupedStats.get(key) || 0;
-            groupedStats.set(key, currentAmount + Math.abs(t.amount));
-          }
-        });
-      }
-
-      // 转换为数组并排序
-      const statsArray = Array.from(groupedStats.entries())
-        .map(([name, amount]) => ({
-          name,
-          amount,
-          icon: iconMap.get(name) || '📊',
-          color: type === 'tag' ? iconMap.get(name) : '#666'
-        }))
-        .sort((a, b) => b.amount - a.amount);
-
-      const total = statsArray.reduce((sum, item) => sum + item.amount, 0);
-      setTotalAmount(total);
-      setStats(statsArray);
     } catch (error) {
       console.error('Failed to load stats:', error);
     }
@@ -251,8 +136,8 @@ const Stats = () => {
 
   const showTransactionDetails = async (itemName: string) => {
     try {
-      const transactions = await getTransactions();
-      const filteredTransactions = transactions.filter(t => {
+      const result = await getTransactions();
+      const filteredTransactions = result.transactions.filter(t => {
         const transactionDate = new Date(t.date);
         const matchDate = period === 'month'
           ? transactionDate.getMonth() === selectedDate.getMonth() &&

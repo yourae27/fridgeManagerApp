@@ -171,30 +171,57 @@ export const getFavorites = async (type: 'income' | 'expense') => {
     }>(`SELECT * FROM ${tableName} ORDER BY created_at DESC;`);
 };
 
-export const getTransactions = async (page = 1, pageSize = 10) => {
+export const getTransactions = async (
+    page = 1,
+    pageSize = 10,
+    filter?: {
+        type?: 'income' | 'expense' | 'all',
+        members?: string[],
+        searchText?: string
+    }
+) => {
     const db = await getDB();
     const offset = (page - 1) * pageSize;
 
-    const transactions = await db.getAllAsync<{
-        id: number;
-        type: 'income' | 'expense';
-        amount: number;
-        category: string;
-        categoryIcon: string;
-        note: string;
-        date: string;
-        created_at: string;
-        refunded: boolean;
-        member: string;
-    }>(`
-        SELECT * FROM transactions 
-        ORDER BY date DESC, created_at DESC 
-        LIMIT ? OFFSET ?
-    `, [pageSize, offset]);
+    let query = `
+        SELECT t.* 
+        FROM transactions t
+        WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    // 添加类型过滤
+    if (filter?.type && filter.type !== 'all') {
+        query += ` AND t.type = ?`;
+        params.push(filter.type);
+    }
+
+    // 添加成员过滤
+    if (filter?.members && filter.members.length > 0) {
+        query += ` AND t.member IN (${filter.members.map(() => '?').join(',')})`;
+        params.push(...filter.members);
+    }
+
+    // 添加搜索条件
+    if (filter?.searchText) {
+        query += ` AND (
+            t.note LIKE ? OR 
+            t.category LIKE ? OR 
+            t.member LIKE ?
+        )`;
+        const searchPattern = `%${filter.searchText}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    // 添加排序和分页
+    query += ` ORDER BY t.date DESC, t.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(pageSize, offset);
+
+    const transactions = await db.getAllAsync(query, params);
 
     // 获取每个交易的标签
     const transactionsWithTags = await Promise.all(
-        transactions.map(async transaction => {
+        transactions.map(async (transaction: any) => {
             const tags = await db.getAllAsync<{ tag_id: number }>(
                 'SELECT tag_id FROM transaction_tags WHERE transaction_id = ?;',
                 [transaction.id]
@@ -206,7 +233,33 @@ export const getTransactions = async (page = 1, pageSize = 10) => {
         })
     );
 
-    return transactionsWithTags;
+    // 获取总记录数
+    let countQuery = `
+        SELECT COUNT(*) as total 
+        FROM transactions t 
+        WHERE 1=1
+    `;
+    if (filter?.type && filter.type !== 'all') {
+        countQuery += ` AND t.type = ?`;
+    }
+    if (filter?.members && filter.members.length > 0) {
+        countQuery += ` AND t.member IN (${filter.members.map(() => '?').join(',')})`;
+    }
+    if (filter?.searchText) {
+        countQuery += ` AND (
+            t.note LIKE ? OR 
+            t.category LIKE ? OR 
+            t.member LIKE ?
+        )`;
+    }
+
+    const [{ total }] = await db.getAllAsync<{ total: number }>(countQuery, params.slice(0, -2));
+
+    return {
+        transactions: transactionsWithTags,
+        total,
+        hasMore: offset + pageSize < total
+    };
 };
 
 export const deleteFavorite = async (type: 'income' | 'expense', id: number) => {
@@ -438,4 +491,119 @@ export const deleteTag = async (id: number) => {
     } finally {
         await statement.finalizeAsync();
     }
+};
+
+// 添加新的统计查询函数
+export const getStats = async (
+    period: 'month' | 'year' | 'custom',
+    type: 'category' | 'member' | 'tag',
+    date: Date,
+    customRange?: { start: Date; end: Date }
+) => {
+    const db = await getDB();
+
+    // 修改日期过滤条件
+    let dateFilter = '';
+    const params: any[] = [];
+
+    if (period === 'month') {
+        dateFilter = `strftime('%Y-%m', date) = strftime('%Y-%m', ?)`;
+        params.push(date.toISOString());
+    } else if (period === 'year') {
+        dateFilter = `strftime('%Y', date) = strftime('%Y', ?)`;
+        params.push(date.toISOString());
+    } else {
+        dateFilter = `date >= ? AND date <= ?`;
+        params.push(
+            customRange!.start.toISOString().split('T')[0],
+            customRange!.end.toISOString().split('T')[0]
+        );
+    }
+
+    // 修改查询中的表别名引用
+    let query = '';
+    if (type === 'tag') {
+        query = `
+      SELECT 
+        tag.name,
+        tag.color,
+        SUM(ABS(transactions.amount)) as total_amount
+      FROM transactions
+      JOIN transaction_tags tt ON transactions.id = tt.transaction_id
+      JOIN tags tag ON tt.tag_id = tag.id
+      WHERE transactions.type = 'expense' 
+        AND NOT transactions.refunded
+        AND ${dateFilter}
+      GROUP BY tag.id
+      ORDER BY total_amount DESC
+    `;
+    } else {
+        const groupField = type === 'category' ? 't.category' : 't.member';
+        const joinTable = type === 'category' ? 'categories c' : 'members m';
+        const joinCondition = type === 'category'
+            ? 't.category = c.name AND c.type = "expense"'
+            : 't.member = m.name';
+        const iconField = type === 'category' ? 'c.icon' : '"👤"';
+
+        query = `
+      SELECT 
+        ${groupField} as name,
+        ${iconField} as icon,
+        SUM(ABS(t.amount)) as total_amount
+      FROM transactions t
+      LEFT JOIN ${joinTable} ON ${joinCondition}
+      WHERE t.type = 'expense'
+        AND NOT t.refunded
+        AND ${dateFilter}
+      GROUP BY ${groupField}
+      ORDER BY total_amount DESC
+    `;
+    }
+
+    const stats = await db.getAllAsync(query, params);
+
+    // 获取月度统计数据
+    const monthlyStatsQuery = `
+    SELECT 
+      SUM(CASE WHEN type = 'income' AND NOT refunded THEN ABS(amount) ELSE 0 END) as income,
+      SUM(CASE WHEN type = 'expense' AND NOT refunded THEN ABS(amount) ELSE 0 END) as expense
+    FROM transactions
+    WHERE ${dateFilter}
+  `;
+
+    const [monthlyStats] = await db.getAllAsync(monthlyStatsQuery, params);
+
+    // 获取上月数据进行同比
+    const lastMonthDate = new Date(date);
+    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+
+    const lastMonthStatsQuery = `
+    SELECT 
+      SUM(CASE WHEN type = 'income' AND NOT refunded THEN ABS(amount) ELSE 0 END) as income,
+      SUM(CASE WHEN type = 'expense' AND NOT refunded THEN ABS(amount) ELSE 0 END) as expense
+    FROM transactions
+    WHERE strftime('%Y-%m', date) = strftime('%Y-%m', ?)
+  `;
+
+    const [lastMonthStats] = await db.getAllAsync(lastMonthStatsQuery, [lastMonthDate.toISOString()]);
+
+    return {
+        stats: stats.map((item: any) => ({
+            name: item.name,
+            amount: item.total_amount,
+            icon: item.icon,
+            color: item.color
+        })),
+        monthlyStats: {
+            income: (monthlyStats as any).income || 0,
+            expense: (monthlyStats as any).expense || 0,
+            balance: ((monthlyStats as any).income || 0) - ((monthlyStats as any).expense || 0),
+            incomeChange: (lastMonthStats as any).income
+                ? (((monthlyStats as any).income - (lastMonthStats as any).income) / (lastMonthStats as any).income) * 100
+                : 0,
+            expenseChange: (lastMonthStats as any).expense
+                ? (((monthlyStats as any).expense - (lastMonthStats as any).expense) / (lastMonthStats as any).expense) * 100
+                : 0
+        }
+    };
 };

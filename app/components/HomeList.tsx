@@ -164,30 +164,15 @@ const HomeList = () => {
     try {
       setIsLoading(true);
       const currentPage = reset ? 1 : page;
-      const data = await getTransactions();
 
-      // 根据过滤条件和搜索关键词筛选数据
-      const filteredData = data.filter(transaction => {
-        const typeMatch = activeFilter === 'all' || transaction.type === activeFilter;
-        const memberMatch = selectedMembers.length === 0 ? true : selectedMembers.includes(transaction.member);
-
-        // 搜索匹配
-        const searchMatch = !searchText || (
-          transaction.note?.toLowerCase().includes(searchText.toLowerCase()) ||
-          transaction.category.toLowerCase().includes(searchText.toLowerCase()) ||
-          transaction.member.toLowerCase().includes(searchText.toLowerCase())
-        );
-
-        return typeMatch && memberMatch && searchMatch;
+      const result = await getTransactions(currentPage, PAGE_SIZE, {
+        type: activeFilter === 'all' ? undefined : activeFilter,
+        members: selectedMembers.length > 0 ? selectedMembers : undefined,
+        searchText: searchText || undefined
       });
 
-      // 分页处理
-      const startIndex = (currentPage - 1) * PAGE_SIZE;
-      const endIndex = startIndex + PAGE_SIZE;
-      const paginatedData = filteredData.slice(0, endIndex);
-
       // 按日期分组
-      const grouped = paginatedData.reduce((groups: GroupedTransactions, transaction) => {
+      const grouped = result.transactions.reduce((groups: GroupedTransactions, transaction: Transaction) => {
         const date = transaction.date;
         if (!groups[date]) {
           groups[date] = [];
@@ -208,9 +193,8 @@ const HomeList = () => {
         setPage(currentPage + 1);
       }
 
-      // 检查是否还有更多数据
-      setHasMore(endIndex < filteredData.length);
-      calculateMonthlyTotal(data);
+      setHasMore(result.hasMore);
+      calculateMonthlyTotal(result.transactions);
 
     } catch (error) {
       console.error('Failed to load transactions:', error);
