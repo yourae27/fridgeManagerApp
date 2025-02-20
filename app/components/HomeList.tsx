@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Modal, TextInput } from 'react-native';
 import { getTransactions, deleteTransaction, updateTransaction, getMembers, getTags } from '../constants/Storage';
 import { router } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -59,6 +59,8 @@ const HomeList = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const PAGE_SIZE = 10;
 
   // 计算每日总计
@@ -164,11 +166,19 @@ const HomeList = () => {
       const currentPage = reset ? 1 : page;
       const data = await getTransactions();
 
-      // 根据过滤条件筛选数据
+      // 根据过滤条件和搜索关键词筛选数据
       const filteredData = data.filter(transaction => {
         const typeMatch = activeFilter === 'all' || transaction.type === activeFilter;
         const memberMatch = selectedMembers.length === 0 ? true : selectedMembers.includes(transaction.member);
-        return typeMatch && memberMatch;
+
+        // 搜索匹配
+        const searchMatch = !searchText || (
+          transaction.note?.toLowerCase().includes(searchText.toLowerCase()) ||
+          transaction.category.toLowerCase().includes(searchText.toLowerCase()) ||
+          transaction.member.toLowerCase().includes(searchText.toLowerCase())
+        );
+
+        return typeMatch && memberMatch && searchMatch;
       });
 
       // 分页处理
@@ -213,6 +223,15 @@ const HomeList = () => {
   useEffect(() => {
     loadTransactions(true);
   }, [activeFilter, selectedMembers, refreshTrigger]);
+
+  // 监听搜索文本变化
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      loadTransactions(true);
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchText]);
 
   // 关闭所有打开的左滑菜单
   const closeAllSwipeables = () => {
@@ -554,6 +573,27 @@ const HomeList = () => {
     );
   };
 
+  const renderSearchBar = () => (
+    <View style={styles.searchContainer}>
+      <View style={styles.searchInputContainer}>
+        <Ionicons name="search" size={20} color="#666" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="搜索备注/分类/成员"
+          value={searchText}
+          onChangeText={setSearchText}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+        {searchText ? (
+          <TouchableOpacity onPress={() => setSearchText('')}>
+            <Ionicons name="close-circle" size={20} color="#666" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container} onTouchStart={closeAllSwipeables}>
       {/* {renderButtonGroup()} */}
@@ -563,7 +603,7 @@ const HomeList = () => {
 
       <View style={styles.transactionSection}>
         <View style={styles.transactionHeader}>
-          <Text style={styles.sectionTitle}>近期交易</Text>
+          <Text style={styles.sectionTitle}>交易记录</Text>
           <View style={styles.filters}>
             <TouchableOpacity
               style={[styles.filter, activeFilter === 'all' && styles.activeFilter]}
@@ -592,8 +632,21 @@ const HomeList = () => {
                 activeFilter === 'expense' && styles.activeFilterText
               ]}>{i18n.t('common.expense')}</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => setShowSearch(!showSearch)}
+            >
+              <Ionicons
+                name={showSearch ? "close" : "search"}
+                size={24}
+                color="#666"
+              />
+            </TouchableOpacity>
+
           </View>
         </View>
+
+        {showSearch && renderSearchBar()}
 
         <ScrollView
           style={styles.transactionList}
@@ -722,28 +775,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
   },
-  filters: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 2,
-    marginBottom: 16,
-    padding: 6,
+  searchButton: {
   },
-  filter: {
-    paddingVertical: 4,
+  searchContainer: {
     paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  activeFilter: {
-    backgroundColor: '#FFF1F1',
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+    gap: 8,
   },
-  filterText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  activeFilterText: {
-    color: '#dc4446',
-    fontWeight: '500',
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    padding: 0,
   },
   transactionList: {
     flex: 1,
@@ -895,6 +949,29 @@ const styles = StyleSheet.create({
   },
   refundButton: {
     backgroundColor: '#F1EBB3',
+  },
+  filters: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 2,
+    marginBottom: 16,
+    padding: 6,
+  },
+  filter: {
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  activeFilter: {
+    backgroundColor: '#FFF1F1',
+  },
+  filterText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  activeFilterText: {
+    color: '#dc4446',
+    fontWeight: '500',
   },
   transactionNote: {
     color: '#999',
