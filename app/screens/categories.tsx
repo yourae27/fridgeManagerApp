@@ -2,15 +2,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert, Modal, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { getCategories, addCategory, deleteCategory } from '../constants/Storage';
+import { getCategories, addCategory, deleteCategory, updateCategoryOrder } from '../constants/Storage';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useCategoryContext } from '../context/CategoryContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    runOnJS,
+} from 'react-native-reanimated';
+import DraggableFlatList, {
+    ScaleDecorator,
+    RenderItemParams,
+} from 'react-native-draggable-flatlist';
 
 export interface Category {
     id: number;
-    type: 'income' | 'expense';
+    type: string;     // type: 'income' | 'expense';
     name: string;
     icon: string;
+    sort_order: number;
 }
 
 const EMOJI_LIST = [
@@ -132,6 +144,64 @@ const Categories = () => {
         </Modal>
     );
 
+    const onDragEnd = async ({ data }: { data: Category[] }) => {
+        setCategories(data);
+        // 更新数据库中的排序
+        await updateCategoryOrder(
+            data.map((item, index) => ({
+                id: item.id,
+                sort_order: index
+            }))
+        );
+    };
+
+    const renderItem = ({ item, drag, isActive }: RenderItemParams<Category>) => {
+        return (
+            <ScaleDecorator>
+                <Animated.View>
+                    <Swipeable
+                        ref={ref => {
+                            if (ref) {
+                                swipeableRefs.current[item.id] = ref;
+                            }
+                        }}
+                        renderRightActions={() => (
+                            <TouchableOpacity
+                                style={styles.deleteButton}
+                                onPress={() => handleDeleteCategory(item.id)}
+                            >
+                                <Ionicons name="trash-outline" size={24} color="white" />
+                            </TouchableOpacity>
+                        )}
+                        onSwipeableOpen={() => {
+                            Object.entries(swipeableRefs.current).forEach(([key, ref]) => {
+                                if (Number(key) !== item.id) {
+                                    ref?.close();
+                                }
+                            });
+                        }}
+                    >
+                        <TouchableOpacity
+                            onLongPress={drag}
+                            disabled={isActive}
+                            style={[
+                                styles.categoryItem,
+                                isActive && styles.categoryItemActive
+                            ]}
+
+                        >
+                            <View style={styles.categoryInfo}>
+                                <Text style={styles.categoryIcon}>{item.icon}</Text>
+                                <Text style={styles.categoryName}>{item.name}</Text>
+                            </View>
+                            <Ionicons name="menu" size={24} color="#666" />
+                        </TouchableOpacity>
+                    </Swipeable>
+                </Animated.View>
+            </ScaleDecorator>
+        );
+    };
+
     return (
         <View style={styles.container} onTouchStart={closeAllSwipeables}>
             <View style={styles.tabs}>
@@ -155,7 +225,7 @@ const Categories = () => {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.scrollView}>
+            <View style={styles.scrollView}>
                 <View style={styles.header}>
                     <Text style={styles.title}>
                         {activeTab === 'income' ? 'Income' : 'Expense'} Categories
@@ -200,47 +270,16 @@ const Categories = () => {
                         </View>
                     </View>
                 )}
-
                 <View style={styles.list}>
-                    {categories.map(category => (
-                        <Swipeable
-                            key={category.id}
-                            ref={ref => swipeableRefs.current[category.id] = ref}
-                            renderRightActions={() => (
-                                <TouchableOpacity
-                                    style={styles.deleteButton}
-                                    onPress={() => handleDeleteCategory(category.id)}
-                                >
-                                    <Ionicons name="trash-outline" size={24} color="white" />
-                                </TouchableOpacity>
-                            )}
-                            onSwipeableWillOpen={() => {
-                                Object.entries(swipeableRefs.current).forEach(([id, ref]) => {
-                                    if (Number(id) !== category.id) {
-                                        ref?.close();
-                                    }
-                                });
-                            }}
-                        >
-                            <TouchableOpacity
-                                style={styles.categoryItem}
-                                onPress={() => {
-                                    router.back();
-                                    // 这里可以添加回调来更新选中的类别
-                                }}
-                            >
-                                <View style={styles.categoryLeft}>
-                                    <View style={styles.categoryIcon}>
-                                        <Text style={styles.iconText}>{category.icon}</Text>
-                                    </View>
-                                    <Text style={styles.categoryName}>{category.name}</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#999" />
-                            </TouchableOpacity>
-                        </Swipeable>
-                    ))}
+                    <DraggableFlatList
+                        data={categories}
+                        onDragEnd={onDragEnd}
+                        keyExtractor={item => item.id.toString()}
+                        renderItem={renderItem}
+
+                    />
                 </View>
-            </ScrollView>
+            </View>
             {renderEmojiPicker()}
         </View>
     );
@@ -343,20 +382,12 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 12,
     },
-    categoryLeft: {
+    categoryInfo: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
     },
     categoryIcon: {
-        width: 40,
-        height: 40,
-        backgroundColor: '#fff1f1',
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    iconText: {
         fontSize: 20,
     },
     categoryName: {
@@ -434,6 +465,18 @@ const styles = StyleSheet.create({
     },
     emojiItemText: {
         fontSize: 24,
+    },
+    categoryItemActive: {
+        backgroundColor: '#f5f5f5',
+        transform: [{ scale: 1.05 }],
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
 });
 

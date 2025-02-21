@@ -5,6 +5,15 @@ const DB_NAME = 'ninecents.db';
 // 创建一个单例数据库连接
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
+let isInitialized = false;
+
+const ensureInitialized = async () => {
+    if (!isInitialized) {
+        await initDatabase();
+        isInitialized = true;
+    }
+};
+
 const getDB = async () => {
     if (!dbInstance) {
         dbInstance = await SQLite.openDatabaseAsync(DB_NAME);
@@ -14,7 +23,8 @@ const getDB = async () => {
 
 export const initDatabase = async () => {
     const db = await getDB();
-    await db.withTransactionAsync(async () => {
+    try {
+        // 先创建基本表结构
         await db.execAsync(`
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,6 +59,7 @@ export const initDatabase = async () => {
                 type TEXT NOT NULL,
                 name TEXT NOT NULL,
                 icon TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -66,6 +77,7 @@ export const initDatabase = async () => {
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
                 date TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -76,10 +88,17 @@ export const initDatabase = async () => {
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
                 date TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-    });
+
+        // 设置初始化标志
+        isInitialized = true;
+    } catch (error) {
+        console.error('Database initialization error:', error);
+        throw error;
+    }
 };
 
 export const addTransaction = async (data: {
@@ -157,8 +176,10 @@ export const getFavorites = async (type: 'income' | 'expense') => {
         categoryIcon: string;
         note: string;
         date: string;
-        created_at: string;
-    }>(`SELECT * FROM ${tableName} ORDER BY created_at DESC;`);
+        sort_order: number;
+    }>(`SELECT id, amount, category, categoryIcon, note, date, sort_order 
+        FROM ${tableName} 
+        ORDER BY sort_order ASC, id DESC;`);
 };
 
 export const getTransactions = async (
@@ -356,15 +377,18 @@ export const updateTransaction = async (id: number, data: {
     });
 };
 
-export const getCategories = async (type: 'income' | 'expense') => {
+export const getCategories = async (type?: 'income' | 'expense') => {
+    await ensureInitialized();
     const db = await getDB();
+    const typeFilter = type ? 'WHERE type = ?' : '';
+    const params = type ? [type] : [];
     return await db.getAllAsync<{
         id: number;
-        type: 'income' | 'expense';
+        type: string;
         name: string;
         icon: string;
-        created_at: string;
-    }>('SELECT * FROM categories WHERE type = ? ORDER BY created_at ASC;', [type]);
+        sort_order: number;
+    }>(`SELECT * FROM categories ${typeFilter} ORDER BY sort_order ASC, created_at ASC;`, params);
 };
 
 export const addCategory = async (data: {
@@ -394,6 +418,7 @@ export const deleteCategory = async (id: number) => {
 };
 
 export const getMembers = async () => {
+    await ensureInitialized();
     const db = await getDB();
     return await db.getAllAsync<{
         id: number;
@@ -617,4 +642,33 @@ export const getStats = async (
                 : 0
         }
     };
+};
+
+// 添加更新排序的函数
+export const updateCategoryOrder = async (items: { id: number; sort_order: number }[]) => {
+    const db = await getDB();
+    await db.withTransactionAsync(async () => {
+        for (const item of items) {
+            await db.runAsync(
+                'UPDATE categories SET sort_order = ? WHERE id = ?',
+                [item.sort_order, item.id]
+            );
+        }
+    });
+};
+
+export const updateFavoriteOrder = async (
+    type: 'income' | 'expense',
+    items: { id: number; sort_order: number }[]
+) => {
+    const db = await getDB();
+    const tableName = type === 'income' ? 'income_favorites' : 'expense_favorites';
+    await db.withTransactionAsync(async () => {
+        for (const item of items) {
+            await db.runAsync(
+                `UPDATE ${tableName} SET sort_order = ? WHERE id = ?`,
+                [item.sort_order, item.id]
+            );
+        }
+    });
 };

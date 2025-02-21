@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Platform, Button } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useRootNavigationState } from 'expo-router';
-import { addFavorite, addTransaction, getFavorites, deleteFavorite, updateTransaction, getCategories, getMembers, getTags } from '../constants/Storage';
+import { addFavorite, addTransaction, getFavorites, deleteFavorite, updateTransaction, getCategories, getMembers, getTags, updateFavoriteOrder } from '../constants/Storage';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useTransactionContext } from '../context/TransactionContext';
 import { Category } from './categories';
 import { useCategoryContext } from '../context/CategoryContext';
 import i18n from '../i18n';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
+import Animated from 'react-native-reanimated';
 
 // 定义收藏记录的类型
 export interface FavoriteRecord {
@@ -18,7 +20,7 @@ export interface FavoriteRecord {
   categoryIcon: string;
   note: string;
   date: string;
-  created_at: string;
+  sort_order: number;
 }
 
 interface Tag {
@@ -449,62 +451,78 @@ const Add = () => {
   );
 
   const renderFavorites = () => (
-    <ScrollView
-      style={styles.scrollView}
-      onScrollBeginDrag={closeAllSwipeables}
-    >
-      {favorites.map(favorite => (
-        <Swipeable
-          key={favorite.id}
-          ref={ref => swipeableRefs.current[favorite.id] = ref}
-          renderRightActions={() => (
-            <TouchableOpacity
-              style={styles.deleteAction}
-              onPress={() => handleDeleteFavorite(favorite.id)}
+    <DraggableFlatList
+      data={favorites}
+      onDragEnd={async ({ data }) => {
+        setFavorites(data);
+        await updateFavoriteOrder(
+          activeTab,
+          data.map((item, index) => ({
+            id: item.id,
+            sort_order: index
+          }))
+        );
+      }}
+      keyExtractor={item => item.id.toString()}
+      renderItem={({ item, drag, isActive }) => (
+        <ScaleDecorator>
+          <Animated.View>
+            <Swipeable
+              ref={ref => {
+                if (ref) {
+                  swipeableRefs.current[item.id] = ref;
+                }
+              }}
+              renderRightActions={() => (
+                <TouchableOpacity
+                  style={styles.deleteAction}
+                  onPress={() => handleDeleteFavorite(item.id)}
+                >
+                  <Ionicons name="trash-outline" size={24} color="white" />
+                </TouchableOpacity>
+              )}
+              onSwipeableOpen={() => {
+                Object.entries(swipeableRefs.current).forEach(([key, ref]) => {
+                  if (Number(key) !== item.id) {
+                    ref?.close();
+                  }
+                });
+              }}
             >
-              <Ionicons name="trash-outline" size={24} color="white" />
-            </TouchableOpacity>
-          )}
-          onSwipeableWillOpen={() => {
-            // 关闭其他打开的左滑菜单
-            Object.entries(swipeableRefs.current).forEach(([id, ref]) => {
-              if (Number(id) !== favorite.id) {
-                ref?.close();
-              }
-            });
-          }}
-        >
-          <TouchableOpacity
-            style={styles.favoriteItem}
-            onPress={() => {
-              setActiveMode('new');
-              updateCurrentState('amount', favorite.amount.toString());
-              updateCurrentState('selectedCategory', categories.find(c => c.name === favorite.category)?.id || 0);
-              updateCurrentState('note', favorite.note);
-            }}
-          >
-            <View style={styles.favoriteLeft}>
-              <Text style={styles.favoriteIcon}>{favorite.categoryIcon}</Text>
-              <View>
-                <Text style={styles.favoriteCategory}>{favorite.category}</Text>
-                <Text style={styles.favoriteNote}>{favorite.note}</Text>
-              </View>
-            </View>
-            <Text style={[
-              styles.favoriteAmount,
-              { color: activeTab === 'income' ? '#4CAF50' : '#dc4446' }
-            ]}>
-              {activeTab === 'income' ? '+' : '-'}¥{favorite.amount}
-            </Text>
-          </TouchableOpacity>
-        </Swipeable>
-      ))}
-      {favorites.length === 0 && (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No favorites yet</Text>
-        </View>
+              <TouchableOpacity
+                onLongPress={drag}
+                disabled={isActive}
+                style={[
+                  styles.favoriteItem,
+                  isActive && styles.favoriteItemActive
+                ]}
+                onPress={() => {
+                  setActiveMode('new');
+                  updateCurrentState('amount', item.amount.toString());
+                  updateCurrentState('selectedCategory', categories.find(c => c.name === item.category)?.id || 0);
+                  updateCurrentState('note', item.note);
+                }}
+              >
+                <View style={styles.favoriteLeft}>
+                  <Text style={styles.favoriteIcon}>{item.categoryIcon}</Text>
+                  <View>
+                    <Text style={styles.favoriteCategory}>{item.category}</Text>
+                    <Text style={styles.favoriteNote}>{item.note}</Text>
+                  </View>
+                </View>
+                <Text style={[
+                  styles.favoriteAmount,
+                  { color: activeTab === 'income' ? '#4CAF50' : '#dc4446' }
+                ]}>
+                  {activeTab === 'income' ? '+' : '-'}¥{item.amount}
+                </Text>
+                <Ionicons name="menu" size={24} color="#666" />
+              </TouchableOpacity>
+            </Swipeable>
+          </Animated.View>
+        </ScaleDecorator>
       )}
-    </ScrollView>
+    />
   );
 
   // 加载成员数据
@@ -762,6 +780,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 12,
     marginBottom: 12,
+  },
+  favoriteItemActive: {
+    backgroundColor: '#f5f5f5',
+    transform: [{ scale: 1.05 }],
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   favoriteLeft: {
     flexDirection: 'row',

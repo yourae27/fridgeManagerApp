@@ -9,7 +9,14 @@ import i18n from './i18n'; // 导入 i18n 配置
 
 export default function RootLayout() {
   useEffect(() => {
-    initDatabase();
+    const init = async () => {
+      try {
+        await initDatabase();
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+      }
+    };
+    init();
   }, []);
 
   return (
