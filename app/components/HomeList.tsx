@@ -252,7 +252,7 @@ const HomeList = () => {
                 initialTab: transaction.type,
                 member: transaction.member,
                 refunded: transaction.refunded ? 'true' : 'false',
-                tags: transaction.tags,
+                tags: transaction.tags?.join(','), // 将 tags 转换为字符串
               }
             });
           }}

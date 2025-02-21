@@ -108,8 +108,8 @@ const Add = () => {
         };
         findAndSetCategory();
       }
-      if (params.tags?.length) {
-        setSelectedTags(params.tags)
+      if (!!params.tags) {
+        setSelectedTags(params.tags.split(',').map(Number));
       }
 
       setIsRefunded(params.refunded === 'true');
@@ -213,6 +213,7 @@ const Add = () => {
           date: formattedDate,
           member: currentState.member,
           refunded: isRefunded,
+          tags: selectedTags,
         });
       } else {
         await addTransaction({
@@ -284,10 +285,12 @@ const Add = () => {
               { borderColor: tag.color }
             ]}
             onPress={() => {
-              setSelectedTags(prev =>
-                prev.includes(tag.id)
-                  ? prev.filter(id => id !== tag.id)
-                  : [...prev, tag.id]
+
+              setSelectedTags((prev: any) => {
+                return prev?.includes(tag.id)
+                  ? prev?.filter((id: any) => id !== tag.id)
+                  : [...prev, tag.id];
+              }
               );
             }}
           >

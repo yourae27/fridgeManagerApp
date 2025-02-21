@@ -29,6 +29,36 @@ export const initDatabase = async () => {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
+            CREATE TABLE IF NOT EXISTS transaction_tags (
+                transaction_id INTEGER,
+                tag_id INTEGER,
+                FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+                FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+                PRIMARY KEY(transaction_id, tag_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                color TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                icon TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                budget REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS income_favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 amount REAL NOT NULL,
@@ -48,47 +78,7 @@ export const initDatabase = async () => {
                 date TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-
-            CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT NOT NULL,
-                name TEXT NOT NULL,
-                icon TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                budget REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                color TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS transaction_tags (
-                transaction_id INTEGER,
-                tag_id INTEGER,
-                FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
-                FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE,
-                PRIMARY KEY(transaction_id, tag_id)
-            );
         `);
-        // INSERT OR IGNORE INTO categories (type, name, icon) VALUES
-        // ('expense', 'Food', '🍽️'),
-        // ('expense', 'Transport', '🚗'),
-        // ('expense', 'Shopping', '🛍️'),
-        // ('income', 'Salary', '💼'),
-        // ('income', 'Bonus', '🎁'),
-        // ('income', 'Investment', '📈');
-        // await db.execAsync(`
-        //     INSERT OR IGNORE INTO members (name) VALUES ('我');
-        // `);
     });
 };
 
@@ -322,27 +312,48 @@ export const updateTransaction = async (id: number, data: {
     date?: string;
     member?: string;
     refunded?: boolean;
+    tags?: number[];
 }) => {
     const db = await getDB();
-    const updates = Object.entries(data)
-        .filter(([_, value]) => value !== undefined)
-        .map(([key, _]) => `${key} = ?`)
-        .join(', ');
+    await db.withTransactionAsync(async () => {
+        // 更新主表数据
+        const updates = Object.entries(data)
+            .filter(([key, value]) => value !== undefined && key !== 'tags')
+            .map(([key, _]) => `${key} = ?`)
+            .join(', ');
 
-    const values = Object.entries(data)
-        .filter(([_, value]) => value !== undefined)
-        .map(([_, value]) => value);
+        const values = Object.entries(data)
+            .filter(([key, value]) => value !== undefined && key !== 'tags')
+            .map(([_, value]) => value);
 
-    const statement = await db.prepareAsync(`
-        UPDATE transactions 
-        SET ${updates}
-        WHERE id = ?;
-    `);
-    try {
-        return await statement.executeAsync([...values, id]);
-    } finally {
-        await statement.finalizeAsync();
-    }
+        if (updates.length > 0) {
+            const statement = await db.prepareAsync(`
+                UPDATE transactions 
+                SET ${updates}
+                WHERE id = ?;
+            `);
+            try {
+                await statement.executeAsync([...values, id] as any);
+            } finally {
+                await statement.finalizeAsync();
+            }
+        }
+
+        // 更新标签关联
+        if (data.tags !== undefined) {
+            // 先删除旧的标签关联
+            await db.runAsync('DELETE FROM transaction_tags WHERE transaction_id = ?;', [id]);
+
+            // 添加新的标签关联
+            if (data.tags.length > 0) {
+                const tagValues = data.tags.map(tagId => `(${id}, ${tagId})`).join(',');
+                await db.runAsync(`
+                    INSERT INTO transaction_tags (transaction_id, tag_id)
+                    VALUES ${tagValues};
+                `);
+            }
+        }
+    });
 };
 
 export const getCategories = async (type: 'income' | 'expense') => {
