@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView 
 import { Ionicons } from '@expo/vector-icons';
 import { getMembers, addMember, updateMember, deleteMember } from '../constants/Storage';
 import i18n from '../i18n';
+import EmptyState from '../components/EmptyState';
 
 interface Member {
     id: number;
@@ -172,6 +173,7 @@ const Budget = () => {
 
     return (
         <ScrollView style={styles.container}>
+
             <TouchableOpacity
                 style={styles.addButton}
                 onPress={() => setShowAddForm(true)}
@@ -213,6 +215,13 @@ const Budget = () => {
             )}
 
             <View style={styles.memberList}>
+                {members.length === 0 && (
+                    <EmptyState
+                        icon="people-outline"
+                        title="暂无成员"
+                        description="添加家庭成员一起记账吧"
+                    />
+                )}
                 {members.map(renderMemberItem)}
             </View>
         </ScrollView>

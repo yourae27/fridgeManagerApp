@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView 
 import { Ionicons } from '@expo/vector-icons';
 import { getTags, addTag, updateTag, deleteTag } from '../constants/Storage';
 import i18n from '../i18n';
+import EmptyState from '../components/EmptyState';
 
 interface Tag {
     id: number;
@@ -136,6 +137,14 @@ const Tags = () => {
                         </TouchableOpacity>
                     </View>
                 </View>
+            )}
+
+            {tags.length === 0 && (
+                <EmptyState
+                    icon="pricetags-outline"
+                    title="暂无标签"
+                    description="点击右上角的加号添加标签"
+                />
             )}
 
             <View style={styles.tagList}>

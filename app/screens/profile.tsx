@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import i18n from '../i18n';
 import { generateExcel } from '../utils/excel';
+import EmptyState from '../components/EmptyState';
 
 interface MenuItem {
     id: string;
@@ -17,6 +18,7 @@ interface MenuItem {
 const Profile = () => {
     const [showExportModal, setShowExportModal] = useState(false);
     const [email, setEmail] = useState('');
+    const [members, setMembers] = useState([]);
 
     const handleExport = async () => {
         if (!email.trim() || !email.includes('@')) {

@@ -16,6 +16,7 @@ import DraggableFlatList, {
     ScaleDecorator,
     RenderItemParams,
 } from 'react-native-draggable-flatlist';
+import EmptyState from '../components/EmptyState';
 
 export interface Category {
     id: number;
@@ -237,7 +238,6 @@ const Categories = () => {
                         <Ionicons name="add" size={24} color="#dc4446" />
                     </TouchableOpacity>
                 </View>
-
                 {showAddForm && (
                     <View style={styles.addForm}>
                         <View style={styles.formRow}>
@@ -267,16 +267,25 @@ const Categories = () => {
                             >
                                 <Text style={styles.saveButtonText}>Save</Text>
                             </TouchableOpacity>
+
                         </View>
                     </View>
+
                 )}
+                {categories.length === 0 && (
+                    <EmptyState
+                        icon="list-outline"
+                        title="暂无分类"
+                        description="点击右上角的加号添加分类"
+                    />
+                )}
+
                 <View style={styles.list}>
                     <DraggableFlatList
                         data={categories}
                         onDragEnd={onDragEnd}
                         keyExtractor={item => item.id.toString()}
                         renderItem={renderItem}
-
                     />
                 </View>
             </View>

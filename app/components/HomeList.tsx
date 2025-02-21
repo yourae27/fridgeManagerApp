@@ -6,6 +6,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useTransactionContext } from '../context/TransactionContext';
 import i18n from '../i18n';
+import EmptyState from './EmptyState';
 
 interface Transaction {
   id: number;
@@ -645,6 +646,13 @@ const HomeList = () => {
           }}
           scrollEventThrottle={400}
         >
+          {Object.keys(transactions).length === 0 && (
+            <EmptyState
+              icon="receipt-outline"
+              title="暂无交易记录"
+              description="点击右上角的加号按钮开始记账吧"
+            />
+          )}
           {Object.entries(transactions)
             .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
             .map(([date, items]) => (

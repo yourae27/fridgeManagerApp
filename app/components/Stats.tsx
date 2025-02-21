@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert } fr
 import { getTransactions, getMembers, getCategories, getTags, getStats } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import EmptyState from './EmptyState';
 
 type StatsType = 'category' | 'member' | 'tag';
 type StatsPeriod = 'month' | 'year' | 'custom';
@@ -362,6 +363,13 @@ const Stats = () => {
               </View>
             ))}
           </View>
+          {stats.length === 0 && (
+            <EmptyState
+              icon="bar-chart-outline"
+              title="暂无统计数据"
+              description="添加一些交易记录就能看到统计信息啦"
+            />
+          )}
         </View>
       </View>
 
