@@ -19,7 +19,6 @@ export interface FavoriteRecord {
   category: string;
   categoryIcon: string;
   note: string;
-  date: string;
   sort_order: number;
 }
 
@@ -27,6 +26,11 @@ interface Tag {
   id: number;
   name: string;
   color: string;
+}
+
+interface Member {
+  id: number;
+  name: string;
 }
 
 const Add = () => {
@@ -38,7 +42,7 @@ const Add = () => {
     amount: '0.00',
     selectedCategory: 0,
     note: '',
-    member: '我',
+    member_id: 1,
     refunded: false,
   });
 
@@ -46,7 +50,7 @@ const Add = () => {
     amount: '0.00',
     selectedCategory: 0,
     note: '',
-    member: '我',
+    member_id: 1,
     refunded: false,
   });
 
@@ -70,7 +74,7 @@ const Add = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const { refreshTrigger } = useCategoryContext();
-  const [members, setMembers] = useState<string[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
 
@@ -88,7 +92,7 @@ const Add = () => {
         amount: params.amount || '0.00',
         selectedCategory: 0, // 将在类别加载后更新
         note: params.note || '',
-        member: params.member || '我',
+        member_id: params.member_id || 1,
         refunded: params.refunded === 'true' ? true : false,
       });
       setActiveTab(params.type as 'income' | 'expense');
@@ -162,7 +166,7 @@ const Add = () => {
         category: category.name,
         categoryIcon: category.icon,
         note: currentState.note,
-        date: new Date().toLocaleDateString(),
+        member_id: currentState.member_id,
       });
 
       // 重新加载收藏列表
@@ -213,7 +217,7 @@ const Add = () => {
           categoryIcon: category.icon,
           note: currentState.note,
           date: formattedDate,
-          member: currentState.member,
+          member_id: currentState.member_id,
           refunded: isRefunded,
           tags: selectedTags,
         });
@@ -225,7 +229,7 @@ const Add = () => {
           categoryIcon: category.icon,
           note: currentState.note,
           date: formattedDate,
-          member: currentState.member,
+          member_id: currentState.member_id,
           refunded: false,
           tags: selectedTags,
         });
@@ -394,19 +398,19 @@ const Add = () => {
       {members.length > 0 && (<View>
         <Text style={styles.sectionTitle}>{i18n.t('common.member')}</Text>
         <View style={styles.memberGrid}>
-          {members.map((member) => (
+          {members.map((member: Member) => (
             <TouchableOpacity
-              key={member}
+              key={member.id}
               style={[
                 styles.memberItem,
-                currentState.member === member && styles.selectedMember
+                currentState.member_id === member.id && styles.selectedMember
               ]}
-              onPress={() => updateCurrentState('member', member)}
+              onPress={() => updateCurrentState('member_id', member.id)}
             >
               <Text style={[
                 styles.memberText,
-                currentState.member === member && styles.selectedMemberText
-              ]}>{member}</Text>
+                currentState.member_id === member.id && styles.selectedMemberText
+              ]}>{member.name}</Text>
             </TouchableOpacity>
           ))}
         </View></View>)
@@ -531,7 +535,7 @@ const Add = () => {
   const loadMembers = async () => {
     try {
       const data = await getMembers();
-      setMembers(data.map(member => member.name));
+      setMembers(data);
     } catch (error) {
       console.error('Failed to load members:', error);
     }

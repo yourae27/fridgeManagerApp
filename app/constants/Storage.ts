@@ -85,6 +85,7 @@ export const initDatabase = () => {
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
                 sort_order INTEGER DEFAULT 0,
+                member_id INTEGER NOT NULL DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -95,6 +96,7 @@ export const initDatabase = () => {
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
                 sort_order INTEGER DEFAULT 0,
+                member_id INTEGER NOT NULL DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -163,12 +165,12 @@ export const addFavorite = async (data: {
     category: string;
     categoryIcon: string;
     note?: string;
-    date: string;
+    member_id: number;
 }) => {
     const db = await getDB();
     const tableName = data.type === 'income' ? 'income_favorites' : 'expense_favorites';
     const statement = await db.prepareAsync(`
-        INSERT INTO ${tableName} (amount, category, categoryIcon, note, date)
+        INSERT INTO ${tableName} (amount, category, categoryIcon, note, member_id)
         VALUES (?, ?, ?, ?, ?);
     `);
     try {
@@ -177,7 +179,7 @@ export const addFavorite = async (data: {
             data.category,
             data.categoryIcon,
             data.note || '',
-            data.date
+            data.member_id || 1
         ]);
     } finally {
         await statement.finalizeAsync();
@@ -193,9 +195,9 @@ export const getFavorites = async (type: 'income' | 'expense') => {
         category: string;
         categoryIcon: string;
         note: string;
-        date: string;
         sort_order: number;
-    }>(`SELECT id, amount, category, categoryIcon, note, date, sort_order 
+        member_id: number;
+    }>(`SELECT id, amount, category, categoryIcon, note, sort_order, member_id 
         FROM ${tableName} 
         ORDER BY sort_order ASC, id DESC;`);
 };
@@ -315,7 +317,7 @@ export const updateFavorite = async (id: number, data: {
     category?: string;
     categoryIcon?: string;
     note?: string;
-    date?: string;
+    member_id?: number;
 }) => {
     const db = await getDB();
     const updates = Object.entries(data)
