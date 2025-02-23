@@ -20,8 +20,8 @@ const locales = getLocales();
 if (locales.length > 0) {
     // 获取首选语言的简写代码（如 'zh' 或 'en'）
     const languageCode = locales[0].languageTag.split('-')[0];
-    // i18n.locale = languageCode;
-    i18n.locale = 'zh';
+    i18n.locale = languageCode;
+    // i18n.locale = 'zh';
 }
 
 export default i18n; 

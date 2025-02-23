@@ -16,7 +16,7 @@ interface Transaction {
   categoryIcon: string;
   note: string;
   date: string;
-  member: string;
+  member_id: number;
   refunded: boolean;
   tags?: number[];
 }
@@ -53,7 +53,7 @@ const HomeList = () => {
   const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
   const [activeFilter, setActiveFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [monthlyTotal, setMonthlyTotal] = useState<MonthlyTotal>({ income: 0, expense: 0 });
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [showMemberSelector, setShowMemberSelector] = useState(false);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -138,7 +138,7 @@ const HomeList = () => {
       .flat()
       .filter(t => {
         const transactionDate = new Date(t.date);
-        return (selectedMembers.length === 0 || selectedMembers.includes(t.member)) &&
+        return (selectedMembers.length === 0 || selectedMembers.includes(t.member_id)) &&
           t.type === 'expense' &&
           !t.refunded &&
           transactionDate.getMonth() === currentMonth &&
@@ -149,7 +149,7 @@ const HomeList = () => {
     const totalBudget = selectedMembers.length === 0
       ? members.reduce((sum, m) => sum + (m.budget || 0), 0)
       : members
-        .filter(m => selectedMembers.includes(m.name))
+        .filter(m => selectedMembers.includes(m.id))
         .reduce((sum, m) => sum + (m.budget || 0), 0);
 
     return {
@@ -251,7 +251,7 @@ const HomeList = () => {
                 note: transaction.note || '',
                 date: transaction.date,
                 initialTab: transaction.type,
-                member: transaction.member,
+                member_id: transaction.member_id,
                 refunded: transaction.refunded ? 'true' : 'false',
                 tags: transaction.tags?.join(','), // 将 tags 转换为字符串
               }
@@ -364,7 +364,7 @@ const HomeList = () => {
           <View style={styles.transactionTitleRow}>
             <Text style={styles.transactionType}>{transaction.category}</Text>
             <View style={styles.transactionTags}>
-              <Text style={styles.memberTag}>{transaction.member}</Text>
+              <Text style={styles.memberTag}>{members.find(m => m.id === transaction.member_id)?.name}</Text>
               {!!transaction.refunded && (
                 <View style={styles.refundedBadge}>
                   <Text style={styles.refundedText}>已退款</Text>
@@ -423,13 +423,13 @@ const HomeList = () => {
               key={member.id}
               style={[
                 styles.memberSelectorItem,
-                selectedMembers.includes(member.name) && styles.selectedMemberItem
+                selectedMembers.includes(member.id) && styles.selectedMemberItem
               ]}
               onPress={() => {
                 setSelectedMembers(prev => {
-                  const newSelection = prev.includes(member.name)
-                    ? prev.filter(m => m !== member.name)
-                    : [...prev, member.name];
+                  const newSelection = prev.includes(member.id)
+                    ? prev.filter(m => m !== member.id)
+                    : [...prev, member.id];
                   return newSelection;
                 });
               }}
@@ -437,7 +437,7 @@ const HomeList = () => {
               <View style={styles.memberSelectorItemContent}>
                 <Text style={[
                   styles.memberSelectorItemText,
-                  selectedMembers.includes(member.name) && styles.selectedMemberItemText
+                  selectedMembers.includes(member.id) && styles.selectedMemberItemText
                 ]}>{member.name}</Text>
                 {member.budget && (
                   <Text style={styles.memberBudgetText}>
@@ -445,7 +445,7 @@ const HomeList = () => {
                   </Text>
                 )}
               </View>
-              {selectedMembers.includes(member.name) && (
+              {selectedMembers.includes(member.id) && (
                 <Ionicons name="checkmark" size={20} color="#dc4446" />
               )}
             </TouchableOpacity>

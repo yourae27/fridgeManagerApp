@@ -1,18 +1,10 @@
 import * as SQLite from 'expo-sqlite';
+import { getLocales } from 'expo-localization';
 
 const DB_NAME = 'ninecents.db';
 
 // 创建一个单例数据库连接
 let dbInstance: SQLite.SQLiteDatabase | null = null;
-
-let isInitialized = false;
-
-const ensureInitialized = async () => {
-    if (!isInitialized) {
-        await initDatabase();
-        isInitialized = true;
-    }
-};
 
 const getDB = async () => {
     if (!dbInstance) {
@@ -21,11 +13,33 @@ const getDB = async () => {
     return dbInstance;
 };
 
-export const initDatabase = async () => {
-    const db = await getDB();
+const getDBSync = () => {
+    if (!dbInstance) {
+        dbInstance = SQLite.openDatabaseSync(DB_NAME);
+    }
+    return dbInstance;
+};
+
+export const initDatabase = () => {
+    const db = getDBSync();
     try {
-        // 先创建基本表结构
-        await db.execAsync(`
+        // 获取设备语言
+        const locales = getLocales();
+        const languageCode = locales[0].languageTag.split('-')[0];
+
+        // 根据语言设置默认成员名称
+        const defaultMemberName = languageCode === 'zh' ? '我' : 'me';
+
+        // 创建表结构
+        db.execSync(`
+
+            CREATE TABLE IF NOT EXISTS members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                budget REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 type TEXT NOT NULL,
@@ -34,9 +48,10 @@ export const initDatabase = async () => {
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
                 date TEXT NOT NULL,
-                member TEXT NOT NULL DEFAULT '我',
+                member_id INTEGER NOT NULL DEFAULT 1,
                 refunded BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(member_id) REFERENCES members(id)
             );
             
             CREATE TABLE IF NOT EXISTS transaction_tags (
@@ -63,20 +78,12 @@ export const initDatabase = async () => {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-            CREATE TABLE IF NOT EXISTS members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                budget REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-
             CREATE TABLE IF NOT EXISTS income_favorites (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 amount REAL NOT NULL,
                 category TEXT NOT NULL,
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
-                date TEXT NOT NULL,
                 sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -87,14 +94,25 @@ export const initDatabase = async () => {
                 category TEXT NOT NULL,
                 categoryIcon TEXT NOT NULL,
                 note TEXT,
-                date TEXT NOT NULL,
                 sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
 
-        // 设置初始化标志
-        isInitialized = true;
+        // 检查是否已存在默认成员
+        const existingMember = db.getAllSync(
+            'SELECT * FROM members WHERE id = 1;'
+        );
+        console.log('existingMember', existingMember);
+
+        // 如果不存在默认成员，则添加
+        if (existingMember.length === 0) {
+            console.log('existingMember???', existingMember);
+            db.runSync(
+                'INSERT INTO members (id, name) VALUES (1, ?);',
+                [defaultMemberName]
+            );
+        }
     } catch (error) {
         console.error('Database initialization error:', error);
         throw error;
@@ -108,14 +126,14 @@ export const addTransaction = async (data: {
     categoryIcon: string;
     note?: string;
     date: string;
-    member?: string;
+    member_id?: number;
     refunded?: boolean;
     tags?: number[];
 }) => {
     const db = await getDB();
     await db.withTransactionAsync(async () => {
         const result = await db.runAsync(
-            'INSERT INTO transactions (type, amount, category, categoryIcon, note, date, member, refunded) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+            'INSERT INTO transactions (type, amount, category, categoryIcon, note, date, member_id, refunded) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
             [
                 data.type,
                 data.amount,
@@ -123,7 +141,7 @@ export const addTransaction = async (data: {
                 data.categoryIcon,
                 data.note || '',
                 data.date,
-                data.member || '我',
+                data.member_id || 1,
                 data.refunded || false
             ]
         );
@@ -187,7 +205,7 @@ export const getTransactions = async (
     pageSize = 10,
     filter?: {
         type?: 'income' | 'expense' | 'all',
-        members?: string[],
+        members?: number[],
         searchText?: string
     }
 ) => {
@@ -195,36 +213,33 @@ export const getTransactions = async (
     const offset = (page - 1) * pageSize;
 
     let query = `
-        SELECT t.* 
+        SELECT t.*, m.name as member_name 
         FROM transactions t
+        LEFT JOIN members m ON t.member_id = m.id
         WHERE 1=1
     `;
     const params: any[] = [];
 
-    // 添加类型过滤
     if (filter?.type && filter.type !== 'all') {
         query += ` AND t.type = ?`;
         params.push(filter.type);
     }
 
-    // 添加成员过滤
     if (filter?.members && filter.members.length > 0) {
-        query += ` AND t.member IN (${filter.members.map(() => '?').join(',')})`;
+        query += ` AND t.member_id IN (${filter.members.map(() => '?').join(',')})`;
         params.push(...filter.members);
     }
 
-    // 添加搜索条件
     if (filter?.searchText) {
         query += ` AND (
             t.note LIKE ? OR 
             t.category LIKE ? OR 
-            t.member LIKE ?
+            m.name LIKE ?
         )`;
         const searchPattern = `%${filter.searchText}%`;
         params.push(searchPattern, searchPattern, searchPattern);
     }
 
-    // 添加排序和分页
     query += ` ORDER BY t.date DESC, t.created_at DESC LIMIT ? OFFSET ?`;
     params.push(pageSize, offset);
 
@@ -254,13 +269,13 @@ export const getTransactions = async (
         countQuery += ` AND t.type = ?`;
     }
     if (filter?.members && filter.members.length > 0) {
-        countQuery += ` AND t.member IN (${filter.members.map(() => '?').join(',')})`;
+        countQuery += ` AND t.member_id IN (${filter.members.map(() => '?').join(',')})`;
     }
     if (filter?.searchText) {
         countQuery += ` AND (
             t.note LIKE ? OR 
             t.category LIKE ? OR 
-            t.member LIKE ?
+            m.name LIKE ?
         )`;
     }
 
@@ -331,7 +346,7 @@ export const updateTransaction = async (id: number, data: {
     categoryIcon?: string;
     note?: string;
     date?: string;
-    member?: string;
+    member_id?: number;
     refunded?: boolean;
     tags?: number[];
 }) => {
@@ -378,7 +393,6 @@ export const updateTransaction = async (id: number, data: {
 };
 
 export const getCategories = async (type?: 'income' | 'expense') => {
-    await ensureInitialized();
     const db = await getDB();
     const typeFilter = type ? 'WHERE type = ?' : '';
     const params = type ? [type] : [];
@@ -418,7 +432,6 @@ export const deleteCategory = async (id: number) => {
 };
 
 export const getMembers = async () => {
-    await ensureInitialized();
     const db = await getDB();
     return await db.getAllAsync<{
         id: number;
@@ -574,11 +587,11 @@ export const getStats = async (
       ORDER BY total_amount DESC
     `;
     } else {
-        const groupField = type === 'category' ? 't.category' : 't.member';
+        const groupField = type === 'category' ? 't.category' : 't.member_id';
         const joinTable = type === 'category' ? 'categories c' : 'members m';
         const joinCondition = type === 'category'
             ? 't.category = c.name AND c.type = "expense"'
-            : 't.member = m.name';
+            : 't.member_id = m.id';
         const iconField = type === 'category' ? 'c.icon' : '"👤"';
 
         query = `
