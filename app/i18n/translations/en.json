@@ -22,6 +22,7 @@
         "noTransactions": "No transactions yet"
     },
     "add": {
+        "title": "Create",
         "addIncome": "Add Income",
         "addExpense": "Add Expense",
         "favorites": "Favorites",
@@ -33,9 +34,13 @@
         "title": "Categories",
         "addCategory": "Add Category",
         "categoryName": "Category name",
-        "selectIcon": "Select Icon"
+        "selectIcon": "Select Icon",
+        "noCategories": "No categories yet",
+        "income": "Income Categories",
+        "expense": "Expense Categories"
     },
     "profile": {
+        "profile": "Profile",
         "memberBudget": "Member Management And Budget",
         "exportExcel": "Export Excel",
         "manageCategories": "Manage Categories",

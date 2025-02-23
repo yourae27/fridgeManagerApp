@@ -33,19 +33,19 @@ export default function RootLayout() {
                 fontWeight: 'bold',
               },
             }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="screens/add" />
+            <Stack.Screen name="index" options={{ title: i18n.t('home.title') }} />
+            <Stack.Screen name="screens/add" options={{ title: i18n.t('add.title') }} />
             <Stack.Screen
               name="screens/categories"
               options={{
-                title: 'Categories',
+                title: i18n.t('categories.title'),
                 headerTintColor: '#333',
               }}
             />
             <Stack.Screen
               name="screens/profile"
               options={{
-                title: 'profile',
+                title: i18n.t('profile.profile'),
                 headerTintColor: '#333',
               }}
             />

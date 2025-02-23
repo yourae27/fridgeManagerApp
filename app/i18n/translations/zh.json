@@ -22,9 +22,10 @@
         "noTransactions": "暂无交易记录"
     },
     "add": {
+        "title": "创建",
         "addIncome": "添加收入",
         "addExpense": "添加支出",
-        "favorites": "收藏",
+        "favorites": "快捷收藏",
         "new": "新建",
         "addToFavorites": "添加到收藏",
         "noFavorites": "暂无收藏"
@@ -33,9 +34,13 @@
         "title": "分类管理",
         "addCategory": "添加分类",
         "categoryName": "分类名称",
-        "selectIcon": "选择图标"
+        "selectIcon": "选择图标",
+        "noCategories": "暂无分类",
+        "income": "收入分类",
+        "expense": "支出分类"
     },
     "profile": {
+        "profile": "我的",
         "memberBudget": "成员管理与预算",
         "exportExcel": "导出Excel",
         "manageCategories": "管理分类",

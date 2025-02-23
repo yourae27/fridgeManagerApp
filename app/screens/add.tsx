@@ -321,7 +321,7 @@ const Add = () => {
       </View>
 
       {/* 类别选择 */}
-      <Text style={styles.sectionTitle}>Category</Text>
+      <Text style={styles.sectionTitle}>{i18n.t('common.category')}</Text>
       <View style={styles.categoryGrid}>
         {categories.map(category => (
           <TouchableOpacity
@@ -357,7 +357,7 @@ const Add = () => {
       </View>
 
       {/* 日期选择 */}
-      <Text style={styles.sectionTitle}>Date</Text>
+      <Text style={styles.sectionTitle}>{i18n.t('common.date')}</Text>
       <TouchableOpacity
         style={styles.dateButton}
         onPress={() => setShowDatePicker(!showDatePicker)}
@@ -391,29 +391,31 @@ const Add = () => {
       />
 
       {/* 成员选择 */}
-      <Text style={styles.sectionTitle}>{i18n.t('common.member')}</Text>
-      <View style={styles.memberGrid}>
-        {members.map((member) => (
-          <TouchableOpacity
-            key={member}
-            style={[
-              styles.memberItem,
-              currentState.member === member && styles.selectedMember
-            ]}
-            onPress={() => updateCurrentState('member', member)}
-          >
-            <Text style={[
-              styles.memberText,
-              currentState.member === member && styles.selectedMemberText
-            ]}>{member}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {members.length > 0 && (<View>
+        <Text style={styles.sectionTitle}>{i18n.t('common.member')}</Text>
+        <View style={styles.memberGrid}>
+          {members.map((member) => (
+            <TouchableOpacity
+              key={member}
+              style={[
+                styles.memberItem,
+                currentState.member === member && styles.selectedMember
+              ]}
+              onPress={() => updateCurrentState('member', member)}
+            >
+              <Text style={[
+                styles.memberText,
+                currentState.member === member && styles.selectedMemberText
+              ]}>{member}</Text>
+            </TouchableOpacity>
+          ))}
+        </View></View>)
+      }
 
       {/* 退款状态 */}
       {isEditing && activeTab === 'expense' && (
         <View style={styles.refundedContainer}>
-          <Text style={styles.sectionTitle}>退款状态</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('common.refunded')}</Text>
           <TouchableOpacity
             style={styles.refundedOption}
             onPress={() => setIsRefunded(!isRefunded)}
@@ -423,12 +425,12 @@ const Add = () => {
                 <Ionicons name="checkmark" size={16} color="#dc4446" />
               )}
             </View>
-            <Text style={styles.refundedText}>已退款</Text>
+            <Text style={styles.refundedText}>{i18n.t('common.refunded')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {activeTab === 'expense' && renderTagSection()}
+      {activeTab === 'expense' && tags.length > 0 && renderTagSection()}
 
       {/* 按钮组 */}
       <View style={styles.buttonGroup}>
@@ -437,14 +439,14 @@ const Add = () => {
           onPress={addToFavorites}
         >
           <Ionicons name="star-outline" size={20} color="#dc4446" />
-          <Text style={styles.favoriteButtonText}>Add to Fav</Text>
+          <Text style={styles.favoriteButtonText}>{i18n.t('add.addToFavorites')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.saveButton]}
           onPress={saveTransaction}
         >
-          <Text style={styles.saveButtonText}>Save</Text>
+          <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -589,7 +591,7 @@ const Add = () => {
           <Text style={[
             styles.modeText,
             activeMode === 'new' && styles.activeModeText
-          ]}>Create New</Text>
+          ]}>{i18n.t('add.new')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modeButton, activeMode === 'favorites' && styles.activeModeButton]}
@@ -598,7 +600,7 @@ const Add = () => {
           <Text style={[
             styles.modeText,
             activeMode === 'favorites' && styles.activeModeText
-          ]}>Use Favorites</Text>
+          ]}>{i18n.t('add.favorites')}</Text>
         </TouchableOpacity>
       </View>
 

@@ -17,6 +17,7 @@ import DraggableFlatList, {
     RenderItemParams,
 } from 'react-native-draggable-flatlist';
 import EmptyState from '../components/EmptyState';
+import i18n from '../i18n';
 
 export interface Category {
     id: number;
@@ -213,7 +214,7 @@ const Categories = () => {
                     <Text style={[
                         styles.tabText,
                         activeTab === 'expense' && styles.activeTabText
-                    ]}>Expense</Text>
+                    ]}>{i18n.t('common.expense')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'income' && styles.activeTab]}
@@ -222,14 +223,14 @@ const Categories = () => {
                     <Text style={[
                         styles.tabText,
                         activeTab === 'income' && styles.activeTabText
-                    ]}>Income</Text>
+                    ]}>{i18n.t('common.income')}</Text>
                 </TouchableOpacity>
             </View>
 
             <View style={styles.scrollView}>
                 <View style={styles.header}>
                     <Text style={styles.title}>
-                        {activeTab === 'income' ? 'Income' : 'Expense'} Categories
+                        {activeTab === 'income' ? i18n.t('categories.income') : i18n.t('categories.expense')}
                     </Text>
                     <TouchableOpacity
                         style={styles.addButton}
@@ -243,7 +244,7 @@ const Categories = () => {
                         <View style={styles.formRow}>
                             <TextInput
                                 style={styles.input}
-                                placeholder="Category name"
+                                placeholder={i18n.t('categories.categoryName')}
                                 value={newCategoryName}
                                 onChangeText={setNewCategoryName}
                             />
@@ -259,13 +260,13 @@ const Categories = () => {
                                 style={[styles.button, styles.cancelButton]}
                                 onPress={() => setShowAddForm(false)}
                             >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                                <Text style={styles.cancelButtonText}>{i18n.t('common.cancel')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.button, styles.saveButton]}
                                 onPress={handleAddCategory}
                             >
-                                <Text style={styles.saveButtonText}>Save</Text>
+                                <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>
                             </TouchableOpacity>
 
                         </View>
@@ -275,8 +276,8 @@ const Categories = () => {
                 {categories.length === 0 && (
                     <EmptyState
                         icon="list-outline"
-                        title="暂无分类"
-                        description="点击右上角的加号添加分类"
+                        title={i18n.t('categories.noCategories')}
+                        description={i18n.t('categories.addCategory')}
                     />
                 )}
 
