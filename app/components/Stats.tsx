@@ -4,6 +4,7 @@ import { getTransactions, getMembers, getCategories, getTags, getStats } from '.
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import EmptyState from './EmptyState';
+import i18n from '../i18n';
 
 type StatsType = 'category' | 'member' | 'tag';
 type StatsPeriod = 'month' | 'year' | 'custom';
@@ -34,6 +35,15 @@ interface Tag {
   color: string;
 }
 
+interface DailyStats {
+  income: number;
+  expense: number;
+}
+
+interface CalendarData {
+  [date: string]: DailyStats;
+}
+
 const Stats = () => {
   const [period, setPeriod] = useState<StatsPeriod>('month');
   const [type, setType] = useState<StatsType>('category');
@@ -49,6 +59,9 @@ const Stats = () => {
   const [customEndDate, setCustomEndDate] = useState(new Date());
   const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>('start');
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarData, setCalendarData] = useState<CalendarData>({});
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
 
   const [monthlyStats, setMonthlyStats] = useState({
     balance: 0,
@@ -138,7 +151,7 @@ const Stats = () => {
   const showTransactionDetails = async (itemName: string) => {
     try {
       const result = await getTransactions();
-      const filteredTransactions = result.transactions.filter(t => {
+      const filteredTransactions = (result.transactions as any)?.filter((t: any) => {
         const transactionDate = new Date(t.date);
         const matchDate = period === 'month'
           ? transactionDate.getMonth() === selectedDate.getMonth() &&
@@ -264,36 +277,158 @@ const Stats = () => {
     </TouchableOpacity>
   );
 
+  // 获取日历数据
+  const loadCalendarData = async () => {
+    try {
+      const startDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1);
+      const endDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0);
+      const { dailyStats } = await getStats('custom', 'category', selectedMonth, {
+        start: startDate,
+        end: endDate
+      });
+      setCalendarData(dailyStats as any);
+    } catch (error) {
+      console.error('Failed to load calendar data:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadCalendarData();
+  }, [selectedMonth]);
+
+  const renderCalendarHeader = () => {
+    const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
+    return (
+      <View style={styles.calendarHeader}>
+        {weekDays.map(day => (
+          <Text key={day} style={styles.weekDayText}>{day}</Text>
+        ))}
+      </View>
+    );
+  };
+
+  const renderCalendarDays = () => {
+    const daysInMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0).getDate();
+    const firstDayOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1).getDay();
+    const days = [];
+
+    // 添加空白天数
+    for (let i = 0; i < (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1); i++) {
+      days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
+    }
+
+    // 添加月份天数
+    for (let i = 1; i <= daysInMonth; i++) {
+      const dateStr = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      const dayData = calendarData[dateStr] || { income: 0, expense: 0 };
+      const isToday = new Date().toISOString().split('T')[0] === dateStr;
+
+      days.push(
+        <View
+          key={i}
+          style={[
+            styles.calendarDay,
+            isToday && styles.today,
+            dayData.expense > 0 && styles.expenseDay,
+            dayData.income > 0 && styles.incomeDay
+          ]}
+        >
+          <Text style={[styles.dayText, isToday && styles.todayText]}>{i}</Text>
+          {dayData.income > 0 && (
+            <Text style={styles.incomeText}>+{dayData.income}</Text>
+          )}
+          {dayData.expense > 0 && (
+            <Text style={styles.expenseText}>-{dayData.expense}</Text>
+          )}
+        </View>
+      );
+    }
+
+    return <View style={styles.calendarGrid}>{days}</View>;
+  };
+
+  const renderCalendarModal = () => (
+    <Modal
+      visible={showCalendar}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowCalendar(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.calendarContainer}>
+          <View style={styles.calendarHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                const newDate = new Date(selectedMonth);
+                newDate.setMonth(newDate.getMonth() - 1);
+                setSelectedMonth(newDate);
+              }}
+            >
+              <Ionicons name="chevron-back" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.monthText}>
+              {selectedMonth.getFullYear()}年{selectedMonth.getMonth() + 1}月
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                const newDate = new Date(selectedMonth);
+                newDate.setMonth(newDate.getMonth() + 1);
+                setSelectedMonth(newDate);
+              }}
+            >
+              <Ionicons name="chevron-forward" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          {renderCalendarHeader()}
+          {renderCalendarDays()}
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowCalendar(false)}
+          >
+            <Text style={styles.closeButtonText}>关闭</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.periodButtons}>
-          <TouchableOpacity
-            style={[styles.periodButton, period === 'month' && styles.activePeriodButton]}
-            onPress={() => setPeriod('month')}
+        <View style={styles.headerCalendar}>
+          <View style={styles.periodButtons}>
+            <TouchableOpacity
+              style={[styles.periodButton, period === 'month' && styles.activePeriodButton]}
+              onPress={() => setPeriod('month')}
+            >
+              <Text style={[styles.periodText, period === 'month' && styles.activePeriodText]}>
+                月度
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.periodButton, period === 'year' && styles.activePeriodButton]}
+              onPress={() => setPeriod('year')}
+            >
+              <Text style={[styles.periodText, period === 'year' && styles.activePeriodText]}>
+                年度
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.periodButton, period === 'custom' && styles.activePeriodButton]}
+              onPress={() => setPeriod('custom')}
+            >
+              <Text style={[styles.periodText, period === 'custom' && styles.activePeriodText]}>
+                自定义
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {/* <TouchableOpacity
+            style={styles.calendarButton}
+            onPress={() => setShowCalendar(true)}
           >
-            <Text style={[styles.periodText, period === 'month' && styles.activePeriodText]}>
-              月度
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.periodButton, period === 'year' && styles.activePeriodButton]}
-            onPress={() => setPeriod('year')}
-          >
-            <Text style={[styles.periodText, period === 'year' && styles.activePeriodText]}>
-              年度
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.periodButton, period === 'custom' && styles.activePeriodButton]}
-            onPress={() => setPeriod('custom')}
-          >
-            <Text style={[styles.periodText, period === 'custom' && styles.activePeriodText]}>
-              自定义
-            </Text>
-          </TouchableOpacity>
+            <Ionicons name="calendar-outline" size={24} color="#333" />
+          </TouchableOpacity> */}
         </View>
-
         <View style={styles.datePickerSection}>
           {period === 'custom' ? (
             <View style={styles.dateRow}>
@@ -347,6 +482,7 @@ const Stats = () => {
             />
           </View>
         )}
+
       </View>
 
       <View style={styles.statsContainer}>
@@ -374,6 +510,7 @@ const Stats = () => {
       </View>
 
       {renderTransactionModal()}
+      {renderCalendarModal()}
     </ScrollView>
   );
 };
@@ -665,7 +802,91 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 16,
     marginBottom: 16,
-  }
+  },
+  headerCalendar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calendarButton: {
+    padding: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  weekDayText: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#666',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+    padding: 4,
+    alignItems: 'center',
+  },
+  dayText: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  today: {
+    backgroundColor: '#fff1f1',
+    borderRadius: 8,
+  },
+  todayText: {
+    color: '#dc4446',
+    fontWeight: '600',
+  },
+  expenseDay: {
+    backgroundColor: '#fff1f1',
+  },
+  incomeDay: {
+    backgroundColor: '#FFF8E7',
+  },
+  incomeText: {
+    fontSize: 10,
+    color: '#FF9A2E',
+  },
+  expenseText: {
+    fontSize: 10,
+    color: '#dc4446',
+  },
+  closeButton: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#dc4446',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });
 
 export default Stats; 

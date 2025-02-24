@@ -215,77 +215,62 @@ export const getTransactions = async (
     const offset = (page - 1) * pageSize;
 
     let query = `
-        SELECT t.*, m.name
+        SELECT t.*, m.name 
         FROM transactions t
         LEFT JOIN members m ON t.member_id = m.id
     `;
     const params: any[] = [];
 
+    const conditions: string[] = [];
+
     if (filter?.type && filter.type !== 'all') {
-        query += ` AND t.type = ?`;
+        conditions.push('t.type = ?');
         params.push(filter.type);
     }
 
     if (filter?.members && filter.members.length > 0) {
-        query += ` AND t.member_id IN (${filter.members.map(() => '?').join(',')})`;
+        conditions.push(`t.member_id IN (${filter.members.map(() => '?').join(',')})`);
         params.push(...filter.members);
     }
 
     if (filter?.searchText) {
-        query += ` AND (
+        conditions.push(`(
             t.note LIKE ? OR 
             t.category LIKE ? OR 
             m.name LIKE ?
-        )`;
+        )`);
         const searchPattern = `%${filter.searchText}%`;
         params.push(searchPattern, searchPattern, searchPattern);
     }
 
-    query += ` ORDER BY t.date DESC, t.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(pageSize, offset);
+    if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    query += ` ORDER BY t.date DESC, t.created_at DESC LIMIT ?`;
+    params.push(pageSize + 1); // 多获取一条记录用于判断是否有下一页
 
     const transactions = await db.getAllAsync(query, params);
+    const hasMore = transactions.length > pageSize;
 
-    // 获取每个交易的标签
-    const transactionsWithTags = await Promise.all(
-        transactions.map(async (transaction: any) => {
-            const tags = await db.getAllAsync<{ tag_id: number }>(
-                'SELECT tag_id FROM transaction_tags WHERE transaction_id = ?;',
-                [transaction.id]
-            );
-            return {
-                ...transaction,
-                tags: tags.map(t => t.tag_id),
-            };
-        })
-    );
-
-    // 获取总记录数
-    let countQuery = `
-        SELECT COUNT(*) as total 
-        FROM transactions t 
-        WHERE 1=1
-    `;
-    if (filter?.type && filter.type !== 'all') {
-        countQuery += ` AND t.type = ?`;
-    }
-    if (filter?.members && filter.members.length > 0) {
-        countQuery += ` AND t.member_id IN (${filter.members.map(() => '?').join(',')})`;
-    }
-    if (filter?.searchText) {
-        countQuery += ` AND (
-            t.note LIKE ? OR 
-            t.category LIKE ? OR 
-            m.name LIKE ?
-        )`;
+    // 移除多余的记录
+    if (hasMore) {
+        transactions.pop();
     }
 
-    const [{ total }] = await db.getAllAsync<{ total: number }>(countQuery, params.slice(0, -2));
+    // 按日期分组
+    const grouped = transactions.reduce((acc: { [key: string]: any[] }, curr: any) => {
+        const date = curr.date;
+        if (!acc[date]) {
+            acc[date] = [];
+        }
+        acc[date].push(curr);
+        return acc;
+    }, {});
 
     return {
-        transactions: transactionsWithTags,
-        total,
-        hasMore: offset + pageSize < total
+        transactions: grouped,
+        hasMore
     };
 };
 
@@ -637,6 +622,26 @@ export const getStats = async (
 
     const [lastMonthStats] = await db.getAllAsync(lastMonthStatsQuery, [lastMonthDate.toISOString()]);
 
+    // 添加获取日历数据的逻辑
+    const dailyStatsQuery = `
+      SELECT 
+        date,
+        SUM(CASE WHEN type = 'income' AND NOT refunded THEN ABS(amount) ELSE 0 END) as income,
+        SUM(CASE WHEN type = 'expense' AND NOT refunded THEN ABS(amount) ELSE 0 END) as expense
+      FROM transactions
+      WHERE ${dateFilter}
+      GROUP BY date
+    `;
+
+    const dailyStats = await db.getAllAsync(dailyStatsQuery, params);
+    const dailyStatsMap = dailyStats.reduce((acc: any, curr: any) => {
+        acc[curr.date] = {
+            income: curr.income || 0,
+            expense: curr.expense || 0
+        };
+        return acc;
+    }, {});
+
     return {
         stats: stats.map((item: any) => ({
             name: item.name,
@@ -654,7 +659,8 @@ export const getStats = async (
             expenseChange: (lastMonthStats as any).expense
                 ? (((monthlyStats as any).expense - (lastMonthStats as any).expense) / (lastMonthStats as any).expense) * 100
                 : 0
-        }
+        },
+        dailyStats: dailyStatsMap
     };
 };
 

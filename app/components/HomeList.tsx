@@ -159,44 +159,28 @@ const HomeList = () => {
     };
   };
 
-  const loadTransactions = async (reset = false) => {
-    if (isLoading || (!hasMore && !reset)) return;
-
+  const loadTransactions = async (pageNum = 1, replace = true) => {
     try {
       setIsLoading(true);
-      const currentPage = reset ? 1 : page;
-
-      const result = await getTransactions(currentPage, PAGE_SIZE, {
-        type: activeFilter === 'all' ? undefined : activeFilter,
-        members: selectedMembers.length > 0 ? selectedMembers : undefined,
-        searchText: searchText || undefined
-      });
-
-      // 按日期分组
-      const grouped = result.transactions.reduce((groups: GroupedTransactions, transaction: Transaction) => {
-        const date = transaction.date;
-        if (!groups[date]) {
-          groups[date] = [];
+      const { transactions: newTransactions, hasMore: more } = await getTransactions(
+        pageNum,
+        PAGE_SIZE,
+        {
+          type: activeFilter === 'all' ? undefined : activeFilter,
+          members: selectedMembers,
+          searchText: searchText
         }
-        groups[date].push(transaction);
-        return groups;
-      }, {});
+      );
 
-      // 更新状态
-      if (reset) {
-        setTransactions(grouped);
-        setPage(1);
-      } else {
-        setTransactions(prev => ({
-          ...prev,
-          ...grouped
-        }));
-        setPage(currentPage + 1);
+      setHasMore(more);
+      setTransactions(prev =>
+        replace ? newTransactions : { ...prev, ...newTransactions }
+      );
+
+      if (replace) {
+        // 只在刷新时计算月度总计
+        calculateMonthlyTotal(Object.values(newTransactions).flat());
       }
-
-      setHasMore(result.hasMore);
-      calculateMonthlyTotal(result.transactions);
-
     } catch (error) {
       console.error('Failed to load transactions:', error);
     } finally {
@@ -206,13 +190,13 @@ const HomeList = () => {
 
   // 监听筛选条件变化
   useEffect(() => {
-    loadTransactions(true);
+    loadTransactions(1, true);
   }, [activeFilter, selectedMembers, refreshTrigger]);
 
   // 监听搜索文本变化
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      loadTransactions(true);
+      loadTransactions(1, true);
     }, 300);
 
     return () => clearTimeout(debounceTimer);
@@ -416,7 +400,7 @@ const HomeList = () => {
             <Text style={[
               styles.memberSelectorItemText,
               selectedMembers.length === 0 && styles.selectedMemberItemText
-            ]}>全部成员</Text>
+            ]}>{i18n.t('common.allMembers')}</Text>
           </TouchableOpacity>
           {members.map(member => (
             <TouchableOpacity
@@ -461,7 +445,7 @@ const HomeList = () => {
 
     const progress = (stats.expenses / stats.budget) * 100;
     const displayText = selectedMembers.length === 0
-      ? '全部成员'
+      ? i18n.t('common.allMembers')
       : selectedMembers.length === 1
         ? selectedMembers[0]
         : `已选择 ${selectedMembers.length} 人`;
@@ -469,7 +453,7 @@ const HomeList = () => {
     return (
       <View style={styles.budgetSection}>
         <View style={styles.budgetHeader}>
-          <Text style={styles.budgetTitle}>月预算</Text>
+          <Text style={styles.budgetTitle}>{i18n.t('common.monthlyBudget')}</Text>
           <TouchableOpacity
             style={styles.memberSelector}
             onPress={() => setShowMemberSelector(true)}
@@ -588,7 +572,7 @@ const HomeList = () => {
 
       <View style={styles.transactionSection}>
         <View style={styles.transactionHeader}>
-          <Text style={styles.sectionTitle}>交易记录</Text>
+          <Text style={styles.sectionTitle}>{i18n.t('common.transactionRecord')}</Text>
           <View style={styles.filters}>
             <TouchableOpacity
               style={[styles.filter, activeFilter === 'all' && styles.activeFilter]}
@@ -597,7 +581,7 @@ const HomeList = () => {
               <Text style={[
                 styles.filterText,
                 activeFilter === 'all' && styles.activeFilterText
-              ]}>全部</Text>
+              ]}>{i18n.t('common.all')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.filter, activeFilter === 'income' && styles.activeFilter]}
@@ -623,7 +607,7 @@ const HomeList = () => {
             >
               <Ionicons
                 name={showSearch ? "close" : "search"}
-                size={24}
+                size={20}
                 color="#666"
               />
             </TouchableOpacity>
@@ -649,8 +633,8 @@ const HomeList = () => {
           {Object.keys(transactions).length === 0 && (
             <EmptyState
               icon="receipt-outline"
-              title="暂无交易记录"
-              description="点击右上角的加号按钮开始记账吧"
+              title={i18n.t('common.noTransactions')}
+              description={i18n.t('common.clickAddButtonToRecord')}
             />
           )}
           {Object.entries(transactions)
@@ -768,6 +752,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   searchButton: {
+    padding: 4,
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -945,13 +930,16 @@ const styles = StyleSheet.create({
   filters: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 2,
+    gap: 1,
     marginBottom: 16,
-    padding: 6,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 16,
   },
   filter: {
     paddingVertical: 4,
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     borderRadius: 20,
   },
   activeFilter: {

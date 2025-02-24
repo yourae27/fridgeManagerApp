@@ -13,13 +13,19 @@
         "amount": "金额",
         "note": "备注",
         "date": "日期",
-        "member": "成员"
+        "member": "成员",
+        "refunded": "已退款",
+        "allMembers": "全部成员",
+        "monthlyBudget": "月预算",
+        "transactionRecord": "交易记录",
+        "all": "全部"
     },
     "home": {
         "title": "首页",
         "stats": "统计",
         "profile": "我的",
-        "noTransactions": "暂无交易记录"
+        "noTransactions": "暂无交易记录",
+        "clickAddButtonToRecord": "点击右上角的加号按钮开始记账吧"
     },
     "add": {
         "title": "创建",
@@ -28,7 +34,8 @@
         "favorites": "快捷收藏",
         "new": "新建",
         "addToFavorites": "添加到收藏",
-        "noFavorites": "暂无收藏"
+        "noFavorites": "暂无收藏",
+        "clickAddButtonToCreate": "点击右上角的加号按钮开始创建吧"
     },
     "categories": {
         "title": "分类管理",
