@@ -215,10 +215,9 @@ export const getTransactions = async (
     const offset = (page - 1) * pageSize;
 
     let query = `
-        SELECT t.*, m.name as member_name 
+        SELECT t.*, m.name
         FROM transactions t
         LEFT JOIN members m ON t.member_id = m.id
-        WHERE 1=1
     `;
     const params: any[] = [];
 
