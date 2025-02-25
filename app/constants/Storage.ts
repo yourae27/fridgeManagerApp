@@ -531,66 +531,71 @@ export const getStats = async (
     period: 'month' | 'year' | 'custom',
     type: 'category' | 'member' | 'tag',
     date: Date,
-    customRange?: { start: Date; end: Date }
+    customRange?: { start: Date; end: Date },
+    statMode: 'income' | 'expense' = 'expense'
 ) => {
     const db = await getDB();
-
-    // 修改日期过滤条件
     let dateFilter = '';
     const params: any[] = [];
 
     if (period === 'month') {
-        dateFilter = `strftime('%Y-%m', date) = strftime('%Y-%m', ?)`;
+        dateFilter = "strftime('%Y-%m', date) = strftime('%Y-%m', ?)";
         params.push(date.toISOString());
     } else if (period === 'year') {
-        dateFilter = `strftime('%Y', date) = strftime('%Y', ?)`;
+        dateFilter = "strftime('%Y', date) = strftime('%Y', ?)";
         params.push(date.toISOString());
+    } else if (period === 'custom' && customRange) {
+        dateFilter = "date BETWEEN ? AND ?";
+        params.push(customRange.start.toISOString().split('T')[0]);
+        params.push(customRange.end.toISOString().split('T')[0]);
     } else {
-        dateFilter = `date >= ? AND date <= ?`;
-        params.push(
-            customRange!.start.toISOString().split('T')[0],
-            customRange!.end.toISOString().split('T')[0]
-        );
+        dateFilter = "strftime('%Y-%m', date) = strftime('%Y-%m', ?)";
+        params.push(date.toISOString());
     }
 
-    // 修改查询中的表别名引用
     let query = '';
+
     if (type === 'tag') {
         query = `
       SELECT 
-        tag.name,
-        tag.color,
-        SUM(ABS(transactions.amount)) as total_amount
-      FROM transactions
-      JOIN transaction_tags tt ON transactions.id = tt.transaction_id
-      JOIN tags tag ON tt.tag_id = tag.id
-      WHERE transactions.type = 'expense' 
-        AND NOT transactions.refunded
-        AND ${dateFilter}
-      GROUP BY tag.id
+        t.name,
+        t.color as color,
+        SUM(ABS(tr.amount)) as total_amount
+      FROM transactions tr
+      JOIN transaction_tags tt ON tr.id = tt.transaction_id
+      JOIN tags t ON tt.tag_id = t.id
+      WHERE tr.type = ? AND NOT tr.refunded AND ${dateFilter}
+      GROUP BY t.id
       ORDER BY total_amount DESC
     `;
+        params.unshift(statMode); // 添加到参数数组的开头
     } else {
         const groupField = type === 'category' ? 't.category' : 't.member_id';
         const joinTable = type === 'category' ? 'categories c' : 'members m';
         const joinCondition = type === 'category'
-            ? 't.category = c.name AND c.type = "expense"'
+            ? `t.category = c.name AND c.type = ?`
             : 't.member_id = m.id';
+        const nameField = type === 'category' ? 'c.name' : 'm.name';
         const iconField = type === 'category' ? 'c.icon' : '"👤"';
 
         query = `
       SELECT 
-        ${groupField} as name,
+        ${nameField} as name,
         ${iconField} as icon,
         SUM(ABS(t.amount)) as total_amount
       FROM transactions t
       LEFT JOIN ${joinTable} ON ${joinCondition}
-      WHERE t.type = 'expense'
-        AND NOT t.refunded
-        AND ${dateFilter}
+      WHERE t.type = ? AND NOT t.refunded AND ${dateFilter}
       GROUP BY ${groupField}
       ORDER BY total_amount DESC
     `;
+
+        if (type === 'category') {
+            params.unshift(statMode); // 添加类型参数（income 或 expense）
+            params.unshift(statMode); // 添加到 joinCondition 的参数
+        } else {
+            params.unshift(statMode); // 只添加一次类型参数
+        }
     }
 
     const stats = await db.getAllAsync(query, params);
@@ -604,7 +609,7 @@ export const getStats = async (
     WHERE ${dateFilter}
   `;
 
-    const [monthlyStats] = await db.getAllAsync(monthlyStatsQuery, params);
+    const [monthlyStats] = await db.getAllAsync(monthlyStatsQuery, params.slice(-params.length + (type === 'category' ? 2 : 1)));
 
     // 获取上月数据进行同比
     const lastMonthDate = new Date(date);
@@ -631,7 +636,7 @@ export const getStats = async (
       GROUP BY date
     `;
 
-    const dailyStats = await db.getAllAsync(dailyStatsQuery, params);
+    const dailyStats = await db.getAllAsync(dailyStatsQuery, params.slice(-params.length + (type === 'category' ? 2 : 1)));
     const dailyStatsMap = dailyStats.reduce((acc: any, curr: any) => {
         acc[curr.date] = {
             income: curr.income || 0,

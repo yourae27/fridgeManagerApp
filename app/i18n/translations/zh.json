@@ -28,9 +28,6 @@
         "monthly": "月度",
         "tag": "标签",
         "noData": "暂无数据",
-        "expenseCategory": "支出分类",
-        "memberExpense": "成员支出",
-        "tagExpense": "标签支出",
         "weekdays": {
             "mon": "一",
             "tue": "二",
@@ -61,7 +58,13 @@
         "defaultMemberCannotBeDeleted": "默认成员不能删除",
         "noMembers": "暂无成员",
         "addMembersToRecord": "添加家庭成员一起记账吧",
-        "alert": "提示"
+        "alert": "提示",
+        "pleaseInputTagName": "请输入标签名称",
+        "addTagFailed": "添加标签失败",
+        "updateTagFailed": "更新标签失败",
+        "deleteTagFailed": "删除标签失败",
+        "noTags": "暂无标签",
+        "clickAddButtonToAddTag": "点击右上角的加号按钮添加标签吧"
     },
     "home": {
         "title": "首页",

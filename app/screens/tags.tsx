@@ -35,7 +35,7 @@ const Tags = () => {
 
     const handleAddTag = async () => {
         if (!newTagName.trim()) {
-            Alert.alert('提示', '请输入标签名称');
+            Alert.alert(i18n.t('common.tip'), i18n.t('common.pleaseInputTagName'));
             return;
         }
 
@@ -50,7 +50,7 @@ const Tags = () => {
             loadTags();
         } catch (error) {
             console.error('Failed to add tag:', error);
-            Alert.alert('错误', '添加标签失败');
+            Alert.alert(i18n.t('common.error'), i18n.t('common.addTagFailed'));
         }
     };
 
@@ -64,18 +64,18 @@ const Tags = () => {
             loadTags();
         } catch (error) {
             console.error('Failed to update tag:', error);
-            Alert.alert('错误', '更新标签失败');
+            Alert.alert(i18n.t('common.error'), i18n.t('common.updateTagFailed'));
         }
     };
 
     const handleDeleteTag = async (id: number) => {
         Alert.alert(
-            '确认删除',
-            '确定要删除这个标签吗？删除后，相关交易的标签也会被移除。',
+            i18n.t('common.confirmDelete'),
+            i18n.t('common.confirmDeleteTag'),
             [
-                { text: '取消', style: 'cancel' },
+                { text: i18n.t('common.cancel'), style: 'cancel' },
                 {
-                    text: '删除',
+                    text: i18n.t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -83,7 +83,7 @@ const Tags = () => {
                             loadTags();
                         } catch (error) {
                             console.error('Failed to delete tag:', error);
-                            Alert.alert('错误', '删除标签失败');
+                            Alert.alert(i18n.t('common.error'), i18n.t('common.deleteTagFailed'));
                         }
                     },
                 },
@@ -98,14 +98,14 @@ const Tags = () => {
                 onPress={() => setShowAddForm(true)}
             >
                 <Ionicons name="add-circle-outline" size={24} color="#dc4446" />
-                <Text style={styles.addButtonText}>添加新标签</Text>
+                <Text style={styles.addButtonText}>{i18n.t('common.addNewTag')}</Text>
             </TouchableOpacity>
 
             {showAddForm && (
                 <View style={styles.formCard}>
                     <TextInput
                         style={styles.input}
-                        placeholder="标签名称"
+                        placeholder={i18n.t('common.tagName')}
                         value={newTagName}
                         onChangeText={setNewTagName}
                     />
@@ -127,13 +127,13 @@ const Tags = () => {
                             style={[styles.button, styles.cancelButton]}
                             onPress={() => setShowAddForm(false)}
                         >
-                            <Text style={styles.buttonText}>取消</Text>
+                            <Text style={styles.buttonText}>{i18n.t('common.cancel')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.button, styles.saveButton]}
                             onPress={handleAddTag}
                         >
-                            <Text style={styles.buttonText}>保存</Text>
+                            <Text style={styles.buttonText}>{i18n.t('common.save')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -142,8 +142,8 @@ const Tags = () => {
             {tags.length === 0 && (
                 <EmptyState
                     icon="pricetags-outline"
-                    title="暂无标签"
-                    description="点击右上角的加号添加标签"
+                    title={i18n.t('common.noTags')}
+                    description={i18n.t('common.clickAddButtonToAddTag')}
                 />
             )}
 
@@ -175,13 +175,13 @@ const Tags = () => {
                                         style={[styles.button, styles.cancelButton]}
                                         onPress={() => setEditingTag(null)}
                                     >
-                                        <Text style={styles.buttonText}>取消</Text>
+                                        <Text style={styles.buttonText}>{i18n.t('common.cancel')}</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={[styles.button, styles.saveButton]}
                                         onPress={() => handleUpdateTag(editingTag)}
                                     >
-                                        <Text style={styles.buttonText}>保存</Text>
+                                        <Text style={styles.buttonText}>{i18n.t('common.save')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -196,7 +196,7 @@ const Tags = () => {
                                         onPress={() => setEditingTag(tag)}
                                         style={styles.actionButton}
                                     >
-                                        <Ionicons name="pencil" size={20} color="#666" />
+                                        <Ionicons name="pencil-outline" size={20} color="#666" />
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         onPress={() => handleDeleteTag(tag.id)}

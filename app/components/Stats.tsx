@@ -9,7 +9,7 @@ import { useSettings } from '../context/SettingsContext';
 
 type StatsType = 'category' | 'member' | 'tag';
 type StatsPeriod = 'month' | 'year' | 'custom';
-
+type StatsDataType = 'expense' | 'income';
 interface StatItem {
   name: string;
   amount: number;
@@ -48,6 +48,7 @@ interface CalendarData {
 const Stats = () => {
   const [period, setPeriod] = useState<StatsPeriod>('month');
   const [type, setType] = useState<StatsType>('category');
+  const [dataType, setDataType] = useState<StatsDataType>('expense');
   const [stats, setStats] = useState<StatItem[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -83,7 +84,8 @@ const Stats = () => {
         period === 'custom' ? {
           start: customStartDate,
           end: customEndDate
-        } : undefined
+        } : undefined,
+        dataType
       );
 
       setStats(result.stats);
@@ -97,7 +99,7 @@ const Stats = () => {
 
   useEffect(() => {
     loadStats();
-  }, [period, type, selectedDate]);
+  }, [period, type, selectedDate, dataType]);
 
   const handleDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false);
@@ -178,33 +180,47 @@ const Stats = () => {
   };
 
   const renderFilterChosen = () => {
-    return <View style={styles.filterRow}>
-      <TouchableOpacity
-        style={[styles.filterButton, type === 'category' && styles.activeFilterButton]}
-        onPress={() => setType('category')}
-      >
-        <Text style={[styles.filterText, type === 'category' && styles.activeFilterText]}>
-          {i18n.t('common.category')}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.filterButton, type === 'tag' && styles.activeFilterButton]}
-        onPress={() => setType('tag')}
-      >
-        <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
-          {i18n.t('common.tag')}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.filterButton, type === 'member' && styles.activeFilterButton]}
-        onPress={() => setType('member')}
-      >
-        <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
-          {i18n.t('common.member')}
-        </Text>
-      </TouchableOpacity>
-    </View >
-  }
+    return <View style={styles.filterContainer}>
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterButton, type === 'category' && styles.activeFilterButton]}
+          onPress={() => setType('category')}
+        >
+          <Text style={[styles.filterText, type === 'category' && styles.activeFilterText]}>
+            {i18n.t('common.category')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, type === 'tag' && styles.activeFilterButton]}
+          onPress={() => setType('tag')}
+        >
+          <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
+            {i18n.t('common.tag')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, type === 'member' && styles.activeFilterButton]}
+          onPress={() => setType('member')}
+        >
+          <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
+            {i18n.t('common.member')}
+          </Text>
+        </TouchableOpacity>
+      </View >
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.dataTypeButton]}
+          onPress={() => dataType === 'expense' ? setDataType('income') : setDataType('expense')}
+        >
+          <Text style={[styles.dataTypeText]}>
+            {dataType === 'expense' ? i18n.t('common.expense') : i18n.t('common.income')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  };
+
+
 
   const renderTransactionModal = () => (
     <Modal
@@ -288,7 +304,7 @@ const Stats = () => {
       const { dailyStats } = await getStats('custom', 'category', selectedMonth, {
         start: startDate,
         end: endDate
-      });
+      }, dataType);
       setCalendarData(dailyStats as any);
     } catch (error) {
       console.error('Failed to load calendar data:', error);
@@ -507,9 +523,6 @@ const Stats = () => {
         {renderFilterChosen()}
 
         <View style={styles.categoriesSection}>
-          <Text style={styles.sectionTitle}>
-            {type === 'category' ? i18n.t('common.expenseCategory') : type === 'member' ? i18n.t('common.memberExpense') : i18n.t('common.tagExpense')}
-          </Text>
           <View style={styles.statsList}>
             {stats.map((item, index) => (
               <View key={`${item.name}-${index}`}>
@@ -904,6 +917,21 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '500',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dataTypeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
+  },
+  dataTypeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#dc4446',
   },
 });
 
