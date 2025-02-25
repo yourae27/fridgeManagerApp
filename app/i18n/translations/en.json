@@ -64,7 +64,9 @@
         "updateTagFailed": "Update tag failed",
         "deleteTagFailed": "Delete tag failed",
         "noTags": "No tags",
-        "clickAddButtonToAddTag": "Click the plus button in the top right corner to add tag"
+        "clickAddButtonToAddTag": "Click the plus button in the top right corner to add tag",
+        "addNewTag": "Add New Tag",
+        "tagName": "Tag name"
     },
     "home": {
         "title": "Home",
@@ -102,7 +104,30 @@
             "title": "Budget Settings",
             "monthly": "Monthly Budget",
             "daily": "Daily Budget"
-        }
+        },
+        "premium": {
+            "title": "Premium Feature",
+            "description": "Unlock tag management and more premium features",
+            "feature1": "Unlimited tags for better expense tracking",
+            "feature2": "More detailed statistics and insights",
+            "purchase": "Upgrade to Premium",
+            "badge": "Premium",
+            "success": "Purchase Successful",
+            "enjoyFeatures": "Thank you for your purchase! You can now enjoy all premium features.",
+            "failed": "Purchase Failed",
+            "tryAgain": "Please try again later.",
+            "notAvailable": "Product Not Available",
+            "error": "Error"
+        },
+        "export": {
+            "title": "Export Transactions",
+            "emailPlaceholder": "Enter your email address",
+            "invalidEmail": "Please enter a valid email address",
+            "success": "Export Successful",
+            "sent": "The export file has been sent to your email",
+            "failed": "Export failed, please try again later"
+        },
+        "rateApp": "Rate App"
     },
     "settings": {
         "title": "Settings",

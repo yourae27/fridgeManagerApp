@@ -64,7 +64,9 @@
         "updateTagFailed": "更新标签失败",
         "deleteTagFailed": "删除标签失败",
         "noTags": "暂无标签",
-        "clickAddButtonToAddTag": "点击右上角的加号按钮添加标签吧"
+        "clickAddButtonToAddTag": "点击右上角的加号按钮添加标签吧",
+        "addNewTag": "添加新标签",
+        "tagName": "标签名称"
     },
     "home": {
         "title": "首页",
@@ -102,7 +104,30 @@
             "title": "预算设置",
             "monthly": "月度预算",
             "daily": "日均预算"
-        }
+        },
+        "premium": {
+            "title": "高级功能",
+            "description": "解锁标签管理和更多高级功能",
+            "feature1": "无限标签，更好地跟踪支出",
+            "feature2": "更详细的统计和分析",
+            "purchase": "升级到高级版",
+            "badge": "高级",
+            "success": "购买成功",
+            "enjoyFeatures": "感谢您的购买！您现在可以享受所有高级功能。",
+            "failed": "购买失败",
+            "tryAgain": "请稍后再试。",
+            "notAvailable": "产品不可用",
+            "error": "错误"
+        },
+        "export": {
+            "title": "导出交易记录",
+            "emailPlaceholder": "请输入您的邮箱地址",
+            "invalidEmail": "请输入有效的邮箱地址",
+            "success": "导出成功",
+            "sent": "导出文件已发送到您的邮箱",
+            "failed": "导出失败，请稍后重试"
+        },
+        "rateApp": "评价应用"
     },
     "settings": {
         "title": "设置",
