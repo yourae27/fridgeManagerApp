@@ -41,7 +41,15 @@
             "sun": "Sun"
         },
         "close": "Close",
-        "to": "to"
+        "to": "to",
+        "loading": "Loading",
+        "loadMore": "Load more",
+        "search": "Search note/category/member",
+        "used": "Used",
+        "remaining": "Remaining",
+        "members": "Members",
+        "budget": "Budget",
+        "noBudget": "No budget"
     },
     "home": {
         "title": "Home",
@@ -80,5 +88,14 @@
             "monthly": "Monthly Budget",
             "daily": "Daily Budget"
         }
+    },
+    "settings": {
+        "title": "Settings",
+        "general": "General Settings",
+        "currency": "Currency",
+        "success": "Success",
+        "error": "Error",
+        "currencyUpdated": "Currency has been updated",
+        "updateFailed": "Update failed, please try again"
     }
 }

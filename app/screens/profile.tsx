@@ -110,8 +110,8 @@ const Profile = () => {
             id: 'settings',
             title: i18n.t('profile.settings'),
             icon: 'settings-outline',
-            color: '#607D8B',
-            route: '/screens/settings'
+            color: '#8E8DB7',
+            onPress: () => router.push('/screens/settings'),
         }
     ];
 

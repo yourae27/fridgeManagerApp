@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTransactionContext } from '../context/TransactionContext';
 import i18n from '../i18n';
 import EmptyState from './EmptyState';
+import { useSettings } from '../context/SettingsContext';
 
 interface Transaction {
   id: number;
@@ -63,6 +64,7 @@ const HomeList = () => {
   const [searchText, setSearchText] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const PAGE_SIZE = 10;
+  const { currency } = useSettings();
 
   // 计算每日总计
   const calculateDailyTotal = (transactions: Transaction[]): DailyTotal => {
@@ -373,7 +375,7 @@ const HomeList = () => {
         styles.transactionAmount,
         { color: transaction.type === 'income' ? '#FF9A2E' : '#dc4446' }
       ]}>
-        {transaction.type === 'income' ? '+' : '-'}¥{Math.abs(transaction.amount).toFixed(2)}
+        {transaction.type === 'income' ? '+' : '-'}{currency}{Math.abs(transaction.amount).toFixed(2)}
       </Text>
     </View>
   );
@@ -432,7 +434,7 @@ const HomeList = () => {
                 ]}>{member.name}</Text>
                 {member.budget && (
                   <Text style={styles.memberBudgetText}>
-                    预算: ¥{member.budget.toFixed(2)}
+                    {i18n.t('common.budget')}: {currency}{member.budget.toFixed(2)}
                   </Text>
                 )}
               </View>
@@ -455,7 +457,7 @@ const HomeList = () => {
       ? i18n.t('common.allMembers')
       : selectedMembers.length === 1
         ? selectedMembers[0]
-        : `已选择 ${selectedMembers.length} 人`;
+        : `${selectedMembers.length} ${i18n.t('common.members')}`;
 
     return (
       <View style={styles.budgetSection}>
@@ -470,19 +472,19 @@ const HomeList = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.budgetCard}>
-          <Text style={styles.totalBudget}>¥{stats.budget.toFixed(2)}</Text>
+          <Text style={styles.totalBudget}>{currency}{stats.budget.toFixed(2)}</Text>
           <View style={styles.budgetProgressBar}>
             <View style={[styles.budgetProgress, { width: `${Math.min(progress, 100)}%` }]} />
           </View>
           <View style={styles.budgetDetails}>
             <Text style={styles.budgetDetailText}>
-              已使用: ¥{stats.expenses.toFixed(2)}
+              {i18n.t('common.used')}: {currency}{stats.expenses.toFixed(2)}
             </Text>
             <Text style={[
               styles.budgetDetailText,
               stats.remaining && stats.remaining < 0 ? styles.overBudget : null
             ]}>
-              剩余: ¥{stats.remaining?.toFixed(2)}
+              {i18n.t('common.remaining')}: {currency}{stats.remaining?.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -519,14 +521,14 @@ const HomeList = () => {
         <View style={styles.monthlyStatsItem}>
           <Text style={styles.monthlyStatsLabel}>{i18n.t('common.monthlyIncome')}</Text>
           <Text style={[styles.monthlyStatsAmount, { color: '#FF9A2E' }]}>
-            ¥{monthlyTotal.income.toFixed(2)}
+            {currency}{monthlyTotal.income.toFixed(2)}
           </Text>
         </View>
         <View style={styles.monthlyStatsDivider} />
         <View style={styles.monthlyStatsItem}>
           <Text style={styles.monthlyStatsLabel}>{i18n.t('common.monthlyExpense')}</Text>
           <Text style={[styles.monthlyStatsAmount, { color: '#dc4446' }]}>
-            ¥{monthlyTotal.expense.toFixed(2)}
+            {currency}{monthlyTotal.expense.toFixed(2)}
           </Text>
         </View>
       </View>
@@ -543,7 +545,7 @@ const HomeList = () => {
         disabled={isLoading}
       >
         <Text style={styles.loadMoreText}>
-          {isLoading ? '加载中...' : '加载更多'}
+          {isLoading ? i18n.t('common.loading') : i18n.t('common.loadMore')}
         </Text>
       </TouchableOpacity>
     );
@@ -555,7 +557,7 @@ const HomeList = () => {
         <Ionicons name="search" size={20} color="#666" />
         <TextInput
           style={styles.searchInput}
-          placeholder="搜索备注/分类/成员"
+          placeholder={i18n.t('common.search')}
           value={searchText}
           onChangeText={setSearchText}
           returnKeyType="search"
@@ -653,12 +655,12 @@ const HomeList = () => {
                   <View style={styles.dailyTotal}>
                     {calculateDailyTotal(items).income > 0 && (
                       <Text style={[styles.dailyTotalText, { color: '#FF9A2E' }]}>
-                        收入 ¥{calculateDailyTotal(items).income.toFixed(2)}
+                        {i18n.t('common.income')}: {currency}{calculateDailyTotal(items).income.toFixed(2)}
                       </Text>
                     )}
                     {calculateDailyTotal(items).expense > 0 && (
                       <Text style={[styles.dailyTotalText, { color: '#dc4446' }]}>
-                        支出 ¥{calculateDailyTotal(items).expense.toFixed(2)}
+                        {i18n.t('common.expense')}: {currency}{calculateDailyTotal(items).expense.toFixed(2)}
                       </Text>
                     )}
                   </View>

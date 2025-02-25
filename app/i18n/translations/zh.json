@@ -41,7 +41,15 @@
             "sun": "日"
         },
         "close": "关闭",
-        "to": "至"
+        "to": "至",
+        "loading": "加载中",
+        "loadMore": "加载更多",
+        "search": "搜索备注/分类/成员",
+        "used": "已使用",
+        "remaining": "剩余",
+        "members": "人",
+        "budget": "预算",
+        "noBudget": "未设置预算"
     },
     "home": {
         "title": "首页",
@@ -80,5 +88,14 @@
             "monthly": "月度预算",
             "daily": "日均预算"
         }
+    },
+    "settings": {
+        "title": "设置",
+        "general": "通用设置",
+        "currency": "货币单位",
+        "success": "成功",
+        "error": "错误",
+        "currencyUpdated": "货币单位已更新",
+        "updateFailed": "更新失败，请重试"
     }
 }

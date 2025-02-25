@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getMembers, addMember, updateMember, deleteMember } from '../constants/Storage';
 import i18n from '../i18n';
 import EmptyState from '../components/EmptyState';
+import { useSettings } from '../context/SettingsContext';
 
 interface Member {
     id: number;
@@ -17,7 +18,7 @@ const Budget = () => {
     const [newMemberName, setNewMemberName] = useState('');
     const [newMemberBudget, setNewMemberBudget] = useState('');
     const [editingMember, setEditingMember] = useState<Member | null>(null);
-
+    const { currency } = useSettings();
     const loadMembers = async () => {
         try {
             const data = await getMembers();
@@ -146,7 +147,7 @@ const Budget = () => {
                         <>
                             <Text style={styles.memberName}>{member.name}</Text>
                             <Text style={styles.memberBudget}>
-                                {member.budget ? `预算: ¥${member.budget.toFixed(2)}` : '未设置预算'}
+                                {member.budget ? `${i18n.t('common.budget')}: ${currency}${member.budget.toFixed(2)}` : i18n.t('common.noBudget')}
                             </Text>
                         </>
                     )}

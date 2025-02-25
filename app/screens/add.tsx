@@ -11,6 +11,7 @@ import i18n from '../i18n';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import Animated from 'react-native-reanimated';
+import { useSettings } from '../context/SettingsContext';
 
 // 定义收藏记录的类型
 export interface FavoriteRecord {
@@ -83,6 +84,8 @@ const Add = () => {
   const params = routes[1].params as any;
   const isEditing = params?.mode === 'edit';
   const [isRefunded, setIsRefunded] = useState(false);
+
+  const { currency } = useSettings();
 
   // 设置初始标签
   useEffect(() => {
@@ -313,7 +316,7 @@ const Add = () => {
     <ScrollView style={styles.scrollView}>
       {/* 金额输入 */}
       <View style={styles.amountContainer}>
-        <Text style={styles.currencySymbol}>¥</Text>
+        <Text style={styles.currencySymbol}>{currency}</Text>
         <TextInput
           style={styles.amountInput}
           value={currentState.amount}
@@ -520,7 +523,7 @@ const Add = () => {
                   styles.favoriteAmount,
                   { color: activeTab === 'income' ? '#4CAF50' : '#dc4446' }
                 ]}>
-                  {activeTab === 'income' ? '+' : '-'}¥{item.amount}
+                  {activeTab === 'income' ? '+' : '-'}{currency}{item.amount}
                 </Text>
                 <Ionicons name="menu" size={24} color="#666" />
               </TouchableOpacity>

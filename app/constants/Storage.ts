@@ -692,3 +692,48 @@ export const updateFavoriteOrder = async (
         }
     });
 };
+
+// 添加设置相关的函数
+export const getSetting = async (key: string): Promise<string | null> => {
+  const db = await getDB();
+  try {
+    // 确保设置表存在
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    
+    const result = await db.getAllAsync<{ value: string }>(
+      'SELECT value FROM settings WHERE key = ?;',
+      [key]
+    );
+    
+    return result.length > 0 ? result[0].value : null;
+  } catch (error) {
+    console.error(`Failed to get setting ${key}:`, error);
+    return null;
+  }
+};
+
+export const updateSetting = async (key: string, value: string): Promise<void> => {
+  const db = await getDB();
+  try {
+    // 确保设置表存在
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    
+    await db.runAsync(
+      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);',
+      [key, value]
+    );
+  } catch (error) {
+    console.error(`Failed to update setting ${key}:`, error);
+    throw error;
+  }
+};

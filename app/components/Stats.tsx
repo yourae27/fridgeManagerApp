@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import EmptyState from './EmptyState';
 import i18n from '../i18n';
+import { useSettings } from '../context/SettingsContext';
 
 type StatsType = 'category' | 'member' | 'tag';
 type StatsPeriod = 'month' | 'year' | 'custom';
@@ -70,6 +71,8 @@ const Stats = () => {
     incomeChange: 0,
     expenseChange: 0
   });
+
+  const { currency } = useSettings();
 
   const loadStats = async () => {
     try {
@@ -234,7 +237,7 @@ const Stats = () => {
                   </View>
                 </View>
                 <Text style={styles.transactionAmount}>
-                  -¥{Math.abs(transaction.amount).toFixed(2)}
+                  -{currency}{Math.abs(transaction.amount).toFixed(2)}
                 </Text>
               </View>
             ))}
@@ -260,7 +263,7 @@ const Stats = () => {
           )}
           <Text style={styles.statName}>{item.name}</Text>
         </View>
-        <Text style={styles.statAmount}>¥{item.amount.toFixed(2)}</Text>
+        <Text style={styles.statAmount}>{currency}{item.amount.toFixed(2)}</Text>
       </View>
       <View style={styles.progressBarContainer}>
         <View
