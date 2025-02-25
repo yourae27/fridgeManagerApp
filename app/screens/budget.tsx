@@ -34,13 +34,13 @@ const Budget = () => {
 
     const handleAddMember = async () => {
         if (!newMemberName.trim()) {
-            Alert.alert('提示', '请输入成员名称');
+            Alert.alert(i18n.t('common.alert'), i18n.t('common.pleaseInputMemberName'));
             return;
         }
 
         const existingMember = members.find(m => m.name === newMemberName.trim());
         if (existingMember) {
-            Alert.alert('提示', '该成员名称已存在');
+            Alert.alert(i18n.t('common.alert'), i18n.t('common.memberNameExists'));
             return;
         }
 
@@ -55,14 +55,14 @@ const Budget = () => {
             loadMembers();
         } catch (error) {
             console.error('Failed to add member:', error);
-            Alert.alert('错误', '添加成员失败');
+            Alert.alert(i18n.t('common.error'), i18n.t('common.addMemberFailed'));
         }
     };
 
     const handleUpdateMember = async (member: Member) => {
         const existingMember = members.find(m => m.name === member.name && m.id !== member.id);
         if (existingMember) {
-            Alert.alert('提示', '该成员名称已存在');
+            Alert.alert(i18n.t('common.alert'), i18n.t('common.memberNameExists'));
             return;
         }
 
@@ -75,23 +75,23 @@ const Budget = () => {
             loadMembers();
         } catch (error) {
             console.error('Failed to update member:', error);
-            Alert.alert('错误', '更新成员失败');
+            Alert.alert(i18n.t('common.error'), i18n.t('common.updateMemberFailed'));
         }
     };
 
     const handleDeleteMember = async (id: number) => {
         if (id === 1) {
-            Alert.alert('提示', '默认成员"我"不能删除');
+            Alert.alert(i18n.t('common.alert'), i18n.t('common.defaultMemberCannotBeDeleted'));
             return;
         }
 
         Alert.alert(
-            '确认删除',
-            '确定要删除这个成员吗？删除后，该成员的预算记录也会被删除。',
+            i18n.t('common.confirmDelete'),
+            i18n.t('common.confirmDeleteMember'),
             [
-                { text: '取消', style: 'cancel' },
+                { text: i18n.t('common.cancel'), style: 'cancel' },
                 {
-                    text: '删除',
+                    text: i18n.t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -99,7 +99,7 @@ const Budget = () => {
                             loadMembers();
                         } catch (error) {
                             console.error('Failed to delete member:', error);
-                            Alert.alert('错误', '删除成员失败');
+                            Alert.alert(i18n.t('common.error'), i18n.t('common.deleteMemberFailed'));
                         }
                     },
                 },
@@ -119,13 +119,13 @@ const Budget = () => {
                                 style={styles.editInput}
                                 value={editingMember.name}
                                 onChangeText={(text) => setEditingMember({ ...editingMember, name: text })}
-                                placeholder="成员名称"
+                                placeholder={i18n.t('common.memberName')}
                             />
                             <TextInput
                                 style={styles.editInput}
                                 value={editingMember.budget?.toString() || ''}
                                 onChangeText={(text) => setEditingMember({ ...editingMember, budget: text ? parseFloat(text) : null })}
-                                placeholder="预算金额（可选）"
+                                placeholder={i18n.t('common.budgetAmount')}
                                 keyboardType="decimal-pad"
                             />
                             <View style={styles.editButtons}>
@@ -133,13 +133,13 @@ const Budget = () => {
                                     style={[styles.editButton, styles.saveButton]}
                                     onPress={() => handleUpdateMember(editingMember)}
                                 >
-                                    <Text style={styles.editButtonText}>保存</Text>
+                                    <Text style={styles.editButtonText}>{i18n.t('common.save')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.editButton, styles.cancelButton]}
                                     onPress={() => setEditingMember(null)}
                                 >
-                                    <Text style={styles.editButtonText}>取消</Text>
+                                    <Text style={styles.editButtonText}>{i18n.t('common.cancel')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -180,7 +180,7 @@ const Budget = () => {
                 onPress={() => setShowAddForm(true)}
             >
                 <Ionicons name="add" size={24} color="white" />
-                <Text style={styles.addButtonText}>添加成员</Text>
+                <Text style={styles.addButtonText}>{i18n.t('common.addMember')}</Text>
             </TouchableOpacity>
 
             {showAddForm && (
@@ -189,13 +189,13 @@ const Budget = () => {
                         style={styles.input}
                         value={newMemberName}
                         onChangeText={setNewMemberName}
-                        placeholder="成员名称"
+                        placeholder={i18n.t('common.memberName')}
                     />
                     <TextInput
                         style={styles.input}
                         value={newMemberBudget}
                         onChangeText={setNewMemberBudget}
-                        placeholder="预算金额（可选）"
+                        placeholder={i18n.t('common.budgetAmount')}
                         keyboardType="decimal-pad"
                     />
                     <View style={styles.formButtons}>
@@ -203,13 +203,13 @@ const Budget = () => {
                             style={[styles.formButton, styles.submitButton]}
                             onPress={handleAddMember}
                         >
-                            <Text style={styles.formButtonText}>确定</Text>
+                            <Text style={styles.formButtonText}>{i18n.t('common.confirm')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.formButton, styles.cancelButton]}
                             onPress={() => setShowAddForm(false)}
                         >
-                            <Text style={styles.formButtonText}>取消</Text>
+                            <Text style={styles.formButtonText}>{i18n.t('common.cancel')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -219,8 +219,8 @@ const Budget = () => {
                 {members.length === 0 && (
                     <EmptyState
                         icon="people-outline"
-                        title="暂无成员"
-                        description="添加家庭成员一起记账吧"
+                        title={i18n.t('common.noMembers')}
+                        description={i18n.t('common.addMembersToRecord')}
                     />
                 )}
                 {members.map(renderMemberItem)}

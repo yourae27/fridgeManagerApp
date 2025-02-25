@@ -105,11 +105,9 @@ export const initDatabase = () => {
         const existingMember = db.getAllSync(
             'SELECT * FROM members WHERE id = 1;'
         );
-        console.log('existingMember', existingMember);
 
         // 如果不存在默认成员，则添加
         if (existingMember.length === 0) {
-            console.log('existingMember???', existingMember);
             db.runSync(
                 'INSERT INTO members (id, name) VALUES (1, ?);',
                 [defaultMemberName]
@@ -695,45 +693,45 @@ export const updateFavoriteOrder = async (
 
 // 添加设置相关的函数
 export const getSetting = async (key: string): Promise<string | null> => {
-  const db = await getDB();
-  try {
-    // 确保设置表存在
-    await db.execAsync(`
+    const db = await getDB();
+    try {
+        // 确保设置表存在
+        await db.execAsync(`
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
     `);
-    
-    const result = await db.getAllAsync<{ value: string }>(
-      'SELECT value FROM settings WHERE key = ?;',
-      [key]
-    );
-    
-    return result.length > 0 ? result[0].value : null;
-  } catch (error) {
-    console.error(`Failed to get setting ${key}:`, error);
-    return null;
-  }
+
+        const result = await db.getAllAsync<{ value: string }>(
+            'SELECT value FROM settings WHERE key = ?;',
+            [key]
+        );
+
+        return result.length > 0 ? result[0].value : null;
+    } catch (error) {
+        console.error(`Failed to get setting ${key}:`, error);
+        return null;
+    }
 };
 
 export const updateSetting = async (key: string, value: string): Promise<void> => {
-  const db = await getDB();
-  try {
-    // 确保设置表存在
-    await db.execAsync(`
+    const db = await getDB();
+    try {
+        // 确保设置表存在
+        await db.execAsync(`
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
     `);
-    
-    await db.runAsync(
-      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);',
-      [key, value]
-    );
-  } catch (error) {
-    console.error(`Failed to update setting ${key}:`, error);
-    throw error;
-  }
+
+        await db.runAsync(
+            'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);',
+            [key, value]
+        );
+    } catch (error) {
+        console.error(`Failed to update setting ${key}:`, error);
+        throw error;
+    }
 };

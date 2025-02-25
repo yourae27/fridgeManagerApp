@@ -49,7 +49,19 @@
         "remaining": "剩余",
         "members": "人",
         "budget": "预算",
-        "noBudget": "未设置预算"
+        "noBudget": "未设置预算",
+        "confirm": "确认",
+        "confirmDelete": "确认删除",
+        "deleteMemberFailed": "删除成员失败",
+        "memberName": "成员名称",
+        "budgetAmount": "预算金额",
+        "addMember": "添加成员",
+        "addMemberFailed": "添加成员失败",
+        "updateMemberFailed": "更新成员失败",
+        "defaultMemberCannotBeDeleted": "默认成员不能删除",
+        "noMembers": "暂无成员",
+        "addMembersToRecord": "添加家庭成员一起记账吧",
+        "alert": "提示"
     },
     "home": {
         "title": "首页",

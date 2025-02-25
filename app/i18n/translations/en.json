@@ -49,7 +49,19 @@
         "remaining": "Remaining",
         "members": "Members",
         "budget": "Budget",
-        "noBudget": "No budget"
+        "noBudget": "No budget",
+        "confirm": "Confirm",
+        "confirmDelete": "Confirm Delete",
+        "deleteMemberFailed": "Delete member failed",
+        "memberName": "Member name",
+        "budgetAmount": "Budget amount",
+        "addMember": "Add member",
+        "addMemberFailed": "Add member failed",
+        "updateMemberFailed": "Update member failed",
+        "defaultMemberCannotBeDeleted": "Default member cannot be deleted",
+        "noMembers": "No members",
+        "addMembersToRecord": "Add family members to record",
+        "alert": "Alert"
     },
     "home": {
         "title": "Home",
