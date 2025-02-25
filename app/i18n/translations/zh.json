@@ -18,14 +18,25 @@
         "allMembers": "全部成员",
         "monthlyBudget": "月预算",
         "transactionRecord": "交易记录",
-        "all": "全部"
+        "all": "全部",
+        "noTransactions": "暂无交易记录",
+        "clickAddButtonToRecord": "点击右上角的加号按钮开始记账吧",
+        "monthlyIncome": "本月收入",
+        "monthlyExpense": "本月支出",
+        "yearly": "年度",
+        "custom": "自定义",
+        "monthly": "月度",
+        "tag": "标签",
+        "noData": "暂无数据",
+        "expenseCategory": "支出分类",
+        "memberExpense": "成员支出",
+        "tagExpense": "标签支出"
     },
     "home": {
         "title": "首页",
         "stats": "统计",
         "profile": "我的",
-        "noTransactions": "暂无交易记录",
-        "clickAddButtonToRecord": "点击右上角的加号按钮开始记账吧"
+        "noTransactions": "暂无交易记录"
     },
     "add": {
         "title": "创建",

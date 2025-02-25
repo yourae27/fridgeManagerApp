@@ -510,14 +510,14 @@ const HomeList = () => {
     return <View style={styles.monthlyStatsCard}>
       <View style={styles.monthlyStatsContent}>
         <View style={styles.monthlyStatsItem}>
-          <Text style={styles.monthlyStatsLabel}>本月收入</Text>
+          <Text style={styles.monthlyStatsLabel}>{i18n.t('common.monthlyIncome')}</Text>
           <Text style={[styles.monthlyStatsAmount, { color: '#FF9A2E' }]}>
             ¥{monthlyTotal.income.toFixed(2)}
           </Text>
         </View>
         <View style={styles.monthlyStatsDivider} />
         <View style={styles.monthlyStatsItem}>
-          <Text style={styles.monthlyStatsLabel}>本月支出</Text>
+          <Text style={styles.monthlyStatsLabel}>{i18n.t('common.monthlyExpense')}</Text>
           <Text style={[styles.monthlyStatsAmount, { color: '#dc4446' }]}>
             ¥{monthlyTotal.expense.toFixed(2)}
           </Text>

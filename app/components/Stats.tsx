@@ -181,7 +181,7 @@ const Stats = () => {
         onPress={() => setType('category')}
       >
         <Text style={[styles.filterText, type === 'category' && styles.activeFilterText]}>
-          种类
+          {i18n.t('common.category')}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -189,7 +189,7 @@ const Stats = () => {
         onPress={() => setType('tag')}
       >
         <Text style={[styles.filterText, type === 'tag' && styles.activeFilterText]}>
-          标签
+          {i18n.t('common.tag')}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -197,7 +197,7 @@ const Stats = () => {
         onPress={() => setType('member')}
       >
         <Text style={[styles.filterText, type === 'member' && styles.activeFilterText]}>
-          成员
+          {i18n.t('common.member')}
         </Text>
       </TouchableOpacity>
     </View >
@@ -402,7 +402,7 @@ const Stats = () => {
               onPress={() => setPeriod('month')}
             >
               <Text style={[styles.periodText, period === 'month' && styles.activePeriodText]}>
-                月度
+                {i18n.t('common.monthly')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -410,7 +410,7 @@ const Stats = () => {
               onPress={() => setPeriod('year')}
             >
               <Text style={[styles.periodText, period === 'year' && styles.activePeriodText]}>
-                年度
+                {i18n.t('common.yearly')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -418,7 +418,7 @@ const Stats = () => {
               onPress={() => setPeriod('custom')}
             >
               <Text style={[styles.periodText, period === 'custom' && styles.activePeriodText]}>
-                自定义
+                {i18n.t('common.custom')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -490,7 +490,7 @@ const Stats = () => {
 
         <View style={styles.categoriesSection}>
           <Text style={styles.sectionTitle}>
-            {type === 'category' ? '支出分类' : type === 'member' ? '成员支出' : '标签支出'}
+            {type === 'category' ? i18n.t('common.expenseCategory') : type === 'member' ? i18n.t('common.memberExpense') : i18n.t('common.tagExpense')}
           </Text>
           <View style={styles.statsList}>
             {stats.map((item, index) => (
@@ -502,8 +502,8 @@ const Stats = () => {
           {stats.length === 0 && (
             <EmptyState
               icon="bar-chart-outline"
-              title="暂无统计数据"
-              description="添加一些交易记录就能看到统计信息啦"
+              title={i18n.t('common.noData')}
+              description={i18n.t('common.clickAddButtonToRecord')}
             />
           )}
         </View>

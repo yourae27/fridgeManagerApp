@@ -18,14 +18,25 @@
         "allMembers": "All Members",
         "monthlyBudget": "Monthly Budget",
         "transactionRecord": "Transactions",
-        "all": "All"
+        "all": "All",
+        "noTransactions": "No transactions yet",
+        "clickAddButtonToRecord": "Click the plus button in the top right corner to record",
+        "monthlyIncome": "Monthly Income",
+        "monthlyExpense": "Monthly Expense",
+        "yearly": "Yearly",
+        "custom": "Custom",
+        "monthly": "Monthly",
+        "tag": "Tag",
+        "noData": "No data",
+        "expenseCategory": "Category Expense",
+        "memberExpense": "Member Expense",
+        "tagExpense": "Tag Expense"
     },
     "home": {
         "title": "Home",
         "stats": "Stats",
         "profile": "Profile",
-        "noTransactions": "No transactions yet",
-        "clickAddButtonToRecord": "Click the plus button in the top right corner to record"
+        "noTransactions": "No transactions yet"
     },
     "add": {
         "title": "Create",
