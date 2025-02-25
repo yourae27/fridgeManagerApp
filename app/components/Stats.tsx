@@ -141,12 +141,12 @@ const Stats = () => {
     }
   }, [customStartDate, customEndDate]);
 
-  const getDateDisplay = () => {
-    if (period === 'month') {
-      return selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' });
-    }
-    return selectedDate.getFullYear().toString() + '年';
-  };
+  // const getDateDisplay = () => {
+  //   if (period === 'month') {
+  //     return selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' });
+  //   }
+  //   return selectedDate.getFullYear().toString() + '年';
+  // };
 
   const showTransactionDetails = async (itemName: string) => {
     try {
@@ -296,8 +296,23 @@ const Stats = () => {
     loadCalendarData();
   }, [selectedMonth]);
 
+  const formatMonth = (date: Date) => {
+    if (i18n.locale === 'zh') {
+      return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+    } else {
+      const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'long'
+      };
+      return date.toLocaleDateString(i18n.locale, options);
+    }
+  };
+
   const renderCalendarHeader = () => {
-    const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
+    const weekDays = i18n.locale === 'zh'
+      ? ['一', '二', '三', '四', '五', '六', '日']
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
     return (
       <View style={styles.calendarHeader}>
         {weekDays.map(day => (
@@ -367,7 +382,7 @@ const Stats = () => {
               <Ionicons name="chevron-back" size={24} color="#333" />
             </TouchableOpacity>
             <Text style={styles.monthText}>
-              {selectedMonth.getFullYear()}年{selectedMonth.getMonth() + 1}月
+              {formatMonth(selectedMonth)}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -385,7 +400,7 @@ const Stats = () => {
             style={styles.closeButton}
             onPress={() => setShowCalendar(false)}
           >
-            <Text style={styles.closeButtonText}>关闭</Text>
+            <Text style={styles.closeButtonText}>{i18n.t('common.close')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -437,17 +452,17 @@ const Stats = () => {
                 onPress={() => handleCustomDatePanelClicked('start')}
               >
                 <Text style={styles.dateSelectorText}>
-                  {customStartDate.toLocaleDateString('zh-CN')}
+                  {customStartDate.toLocaleDateString(i18n.locale)}
                 </Text>
                 <Ionicons name="calendar-outline" size={20} color="#666" />
               </TouchableOpacity>
-              <Text style={styles.dateRangeSeparator}>至</Text>
+              <Text style={styles.dateRangeSeparator}>{i18n.t('common.to')}</Text>
               <TouchableOpacity
                 style={[styles.dateSelectorButton, datePickerMode === 'end' && styles.activeDateButton]}
                 onPress={() => handleCustomDatePanelClicked('end')}
               >
                 <Text style={styles.dateSelectorText}>
-                  {customEndDate.toLocaleDateString('zh-CN')}
+                  {customEndDate.toLocaleDateString(i18n.locale)}
                 </Text>
                 <Ionicons name="calendar-outline" size={20} color="#666" />
               </TouchableOpacity>
@@ -459,8 +474,8 @@ const Stats = () => {
             >
               <Text style={styles.dateSelectorText}>
                 {period === 'month'
-                  ? selectedDate.toLocaleString('zh-CN', { year: 'numeric', month: 'long' })
-                  : `${selectedDate.getFullYear()}年`
+                  ? selectedDate.toLocaleString(i18n.locale, { year: 'numeric', month: 'long' })
+                  : `${selectedDate.getFullYear()}`
                 }
               </Text>
               <Ionicons name="calendar-outline" size={20} color="#666" />
@@ -510,7 +525,7 @@ const Stats = () => {
       </View>
 
       {renderTransactionModal()}
-      {renderCalendarModal()}
+      {/* {renderCalendarModal()} */}
     </ScrollView>
   );
 };

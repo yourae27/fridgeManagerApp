@@ -30,7 +30,18 @@
         "noData": "暂无数据",
         "expenseCategory": "支出分类",
         "memberExpense": "成员支出",
-        "tagExpense": "标签支出"
+        "tagExpense": "标签支出",
+        "weekdays": {
+            "mon": "一",
+            "tue": "二",
+            "wed": "三",
+            "thu": "四",
+            "fri": "五",
+            "sat": "六",
+            "sun": "日"
+        },
+        "close": "关闭",
+        "to": "至"
     },
     "home": {
         "title": "首页",

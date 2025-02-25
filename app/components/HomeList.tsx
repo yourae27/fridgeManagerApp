@@ -279,19 +279,26 @@ const HomeList = () => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
-    const yesterday = new Date(today);
+    const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === today.toDateString()) {
-      return '今天';
+      return i18n.t('common.today');
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return '昨天';
+      return i18n.t('common.yesterday');
     } else {
-      return date.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      // 根据当前语言格式化日期
+      if (i18n.locale === 'zh') {
+        return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+      } else {
+        // 英文日期格式
+        const options: Intl.DateTimeFormatOptions = {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        };
+        return date.toLocaleDateString(i18n.locale, options);
+      }
     }
   };
 
