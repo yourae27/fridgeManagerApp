@@ -161,28 +161,50 @@ const HomeList = () => {
     };
   };
 
-  const loadTransactions = async (pageNum = 1, replace = true) => {
+  const loadTransactions = async (pageNum: number, replace = false) => {
+    if (isLoading) return;
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
-      const { transactions: newTransactions, hasMore: more } = await getTransactions(
-        pageNum,
-        PAGE_SIZE,
-        {
-          type: activeFilter === 'all' ? undefined : activeFilter,
-          members: selectedMembers,
-          searchText: searchText
-        }
-      );
+      const { transactions: newTransactions, hasMore: more } = await getTransactions({
+        page: pageNum,
+        pageSize: PAGE_SIZE,
+        filter: activeFilter === 'all' ? undefined : activeFilter,
+        memberIds: selectedMembers,
+        searchText: searchText
+      });
 
       setHasMore(more);
-      setTransactions(prev =>
-        replace ? newTransactions : { ...prev, ...newTransactions }
-      );
+
+      // 按日期分组
+      const grouped = newTransactions.reduce((acc: { [key: string]: any[] }, curr: any) => {
+        const date = curr.date;
+        if (!acc[date]) {
+          acc[date] = [];
+        }
+        acc[date].push(curr);
+        return acc;
+      }, {});
 
       if (replace) {
+        setTransactions(grouped);
         // 只在刷新时计算月度总计
-        calculateMonthlyTotal(Object.values(newTransactions).flat());
+        calculateMonthlyTotal(Object.values(grouped).flat() as Transaction[]);
+      } else {
+        setTransactions(prev => {
+          const newState = { ...prev };
+          Object.entries(grouped).forEach(([date, items]) => {
+            if (newState[date]) {
+              newState[date] = [...newState[date], ...(items as Transaction[])];
+            } else {
+              newState[date] = items as Transaction[];
+            }
+          });
+          return newState;
+        });
       }
+
+      setPage(pageNum);
     } catch (error) {
       console.error('Failed to load transactions:', error);
     } finally {
@@ -253,7 +275,7 @@ const HomeList = () => {
               await updateTransaction(transaction.id, {
                 refunded: true
               });
-              loadTransactions();
+              loadTransactions(page, true);
             } catch (error) {
               console.error('Failed to refund transaction:', error);
             }
@@ -266,7 +288,7 @@ const HomeList = () => {
           onPress={async () => {
             try {
               await deleteTransaction(transaction.id);
-              loadTransactions();
+              loadTransactions(page, true);
             } catch (error) {
               console.error('Failed to delete transaction:', error);
             }
@@ -541,7 +563,7 @@ const HomeList = () => {
     return (
       <TouchableOpacity
         style={styles.loadMoreButton}
-        onPress={() => loadTransactions()}
+        onPress={() => loadTransactions(page + 1)}
         disabled={isLoading}
       >
         <Text style={styles.loadMoreText}>
@@ -634,7 +656,7 @@ const HomeList = () => {
             const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
 
             if (isCloseToBottom && !isLoading && hasMore) {
-              loadTransactions();
+              loadTransactions(page + 1);
             }
           }}
           scrollEventThrottle={400}

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import i18n from '../i18n';
-import { generateExcel, importExcel } from '../utils/excel';
+import { generateExcel, importExcel, exportToLocal } from '../utils/excel';
 import EmptyState from '../components/EmptyState';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -103,6 +103,16 @@ const Profile = () => {
         }
     };
 
+    const handleExportToLocal = async () => {
+        try {
+            await exportToLocal();
+            Alert.alert(i18n.t('profile.export.success'), i18n.t('profile.export.localExportSuccess'));
+            setShowExportModal(false);
+        } catch (error) {
+            Alert.alert(i18n.t('common.error'), i18n.t('profile.export.failed'));
+        }
+    };
+
     const handleImport = async () => {
         try {
             setImportLoading(true);
@@ -175,29 +185,45 @@ const Profile = () => {
                 activeOpacity={1}
                 onPress={() => setShowExportModal(false)}
             >
-                <View style={styles.exportModal} onStartShouldSetResponder={() => true}>
+                <View style={styles.exportModal}>
                     <Text style={styles.exportTitle}>{i18n.t('profile.export.title')}</Text>
-                    <TextInput
-                        style={styles.emailInput}
-                        placeholder={i18n.t('profile.export.emailPlaceholder')}
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                    />
-                    <View style={styles.exportButtons}>
+
+                    <View style={styles.exportOptions}>
                         <TouchableOpacity
-                            style={[styles.exportButton, styles.cancelButton]}
-                            onPress={() => setShowExportModal(false)}
+                            style={styles.exportOptionButton}
+                            onPress={handleExportToLocal}
                         >
-                            <Text style={styles.exportButtonText}>{i18n.t('common.cancel')}</Text>
+                            <Ionicons name="download-outline" size={24} color="#dc4446" />
+                            <Text style={styles.exportOptionText}>{i18n.t('profile.export.exportToLocal')}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.exportButton, styles.confirmButton]}
-                            onPress={handleExport}
-                        >
-                            <Text style={styles.exportButtonText}>{i18n.t('common.confirm')}</Text>
-                        </TouchableOpacity>
+
+                        <View style={styles.exportDivider} />
+
+                        <View style={styles.emailExportContainer}>
+                            <Text style={styles.emailExportTitle}>{i18n.t('profile.export.exportToEmail')}</Text>
+                            <TextInput
+                                style={styles.emailInput}
+                                placeholder={i18n.t('profile.export.emailPlaceholder')}
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                            <View style={styles.exportButtons}>
+                                <TouchableOpacity
+                                    style={[styles.exportButton, styles.cancelButton]}
+                                    onPress={() => setShowExportModal(false)}
+                                >
+                                    <Text style={styles.exportButtonText}>{i18n.t('common.cancel')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.exportButton, styles.confirmButton]}
+                                    onPress={handleExport}
+                                >
+                                    <Text style={styles.exportButtonText}>{i18n.t('common.confirm')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </View>
                 </View>
             </TouchableOpacity>
@@ -490,6 +516,35 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginBottom: 16,
         textAlign: 'center',
+    },
+    exportOptions: {
+        width: '100%',
+    },
+    exportOptionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 8,
+        backgroundColor: '#f5f5f5',
+        marginBottom: 16,
+    },
+    exportOptionText: {
+        fontSize: 16,
+        color: '#333',
+        marginLeft: 12,
+    },
+    exportDivider: {
+        height: 1,
+        backgroundColor: '#eee',
+        marginVertical: 16,
+    },
+    emailExportContainer: {
+        width: '100%',
+    },
+    emailExportTitle: {
+        fontSize: 16,
+        fontWeight: '500',
+        marginBottom: 12,
     },
     emailInput: {
         borderWidth: 1,

@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import * as MailComposer from 'expo-mail-composer';
+import * as Sharing from 'expo-sharing';
 import { getTransactions, addTransaction, getCategories } from '../constants/Storage';
 import * as XLSX from 'xlsx';
 import i18n from '../i18n';
@@ -14,35 +15,51 @@ interface ExportData {
     状态: string;
 }
 
+// 生成Excel文件并返回文件路径
+const createExcelFile = async (): Promise<string> => {
+    // 获取所有交易记录，传入 -1 表示不分页，获取所有数据
+    const { transactions } = await getTransactions({
+        page: -1,
+        pageSize: -1,
+        filter: 'all',
+        memberIds: [],
+        searchText: ''
+    });
+
+    // 需要将transactions按日期分组后再展平
+    const flatTransactions = transactions;
+
+    // 转换数据格式
+    const data: ExportData[] = flatTransactions.map((t: any) => ({
+        日期: t.date,
+        类型: t.type === 'income' ? '收入' : '支出',
+        金额: Math.abs(t.amount).toFixed(2),
+        分类: t.category,
+        备注: t.note || '',
+        成员: t.member,
+        状态: t.refunded ? '已退款' : '正常'
+    }));
+
+    // 生成CSV内容
+    let csvContent = '日期,类型,金额,分类,备注,成员,状态\n';
+    data.forEach(row => {
+        csvContent += `${row.日期},${row.类型},${row.金额},${row.分类},${row.备注},${row.成员},${row.状态}\n`;
+    });
+
+    // 生成文件名
+    const date = new Date();
+    const fileName = `NineCents_${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}.csv`;
+
+    // 保存文件
+    const filePath = `${FileSystem.documentDirectory}${fileName}`;
+    await FileSystem.writeAsStringAsync(filePath, csvContent);
+
+    return filePath;
+};
+
 export const generateExcel = async (email: string) => {
     try {
-        // 获取所有交易记录
-        const { transactions } = await getTransactions();
-
-        // 转换数据格式
-        const data: ExportData[] = (transactions as any)?.map((t: any) => ({
-            日期: t.date,
-            类型: t.type === 'income' ? '收入' : '支出',
-            金额: Math.abs(t.amount).toFixed(2),
-            分类: t.category,
-            备注: t.note || '',
-            成员: t.member,
-            状态: t.refunded ? '已退款' : '正常'
-        }));
-
-        // 生成CSV内容
-        let csvContent = '日期,类型,金额,分类,备注,成员,状态\n';
-        data.forEach(row => {
-            csvContent += `${row.日期},${row.类型},${row.金额},${row.分类},${row.备注},${row.成员},${row.状态}\n`;
-        });
-
-        // 生成文件名
-        const date = new Date();
-        const fileName = `NineCents_${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}.csv`;
-
-        // 保存文件
-        const filePath = `${FileSystem.documentDirectory}${fileName}`;
-        await FileSystem.writeAsStringAsync(filePath, csvContent);
+        const filePath = await createExcelFile();
 
         // 发送邮件
         const available = await MailComposer.isAvailableAsync();
@@ -52,7 +69,7 @@ export const generateExcel = async (email: string) => {
 
         await MailComposer.composeAsync({
             recipients: [email],
-            subject: `NineCents 账单记录 - ${date.toLocaleDateString()}`,
+            subject: `NineCents 账单记录 - ${new Date().toLocaleDateString()}`,
             body: i18n.t('profile.export.sent'),
             attachments: [filePath]
         });
@@ -63,6 +80,30 @@ export const generateExcel = async (email: string) => {
         return true;
     } catch (error) {
         console.error('Export failed:', error);
+        throw error;
+    }
+};
+
+export const exportToLocal = async (): Promise<void> => {
+    try {
+        const filePath = await createExcelFile();
+
+        // 检查是否可以分享
+        const canShare = await Sharing.isAvailableAsync();
+        if (!canShare) {
+            throw new Error(i18n.t('profile.export.sharingUnavailable'));
+        }
+
+        // 分享文件
+        await Sharing.shareAsync(filePath, {
+            mimeType: 'text/csv',
+            dialogTitle: i18n.t('profile.export.saveFile'),
+            UTI: 'public.comma-separated-values-text'
+        });
+
+        return;
+    } catch (error) {
+        console.error('Export to local failed:', error);
         throw error;
     }
 };

@@ -127,7 +127,12 @@
             "success": "Export Successful",
             "sent": "The export file has been sent to your email",
             "failed": "Export failed, please try again later",
-            "emailUnavailable": "Email function is not available"
+            "emailUnavailable": "Email function is not available",
+            "exportToEmail": "Export to Email",
+            "exportToLocal": "Save to Device",
+            "saveFile": "Save File",
+            "sharingUnavailable": "Sharing is not available on this device",
+            "localExportSuccess": "File saved successfully"
         },
         "rateApp": "Rate App",
         "importExcel": "Import Excel",

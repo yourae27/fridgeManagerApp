@@ -127,7 +127,12 @@
             "success": "导出成功",
             "sent": "导出文件已发送到您的邮箱",
             "failed": "导出失败，请稍后重试",
-            "emailUnavailable": "邮件功能不可用"
+            "emailUnavailable": "邮件功能不可用",
+            "exportToEmail": "导出到邮箱",
+            "exportToLocal": "保存到设备",
+            "saveFile": "保存文件",
+            "sharingUnavailable": "此设备不支持分享功能",
+            "localExportSuccess": "文件保存成功"
         },
         "rateApp": "评价应用",
         "importExcel": "导入Excel",

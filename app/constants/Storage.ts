@@ -200,76 +200,100 @@ export const getFavorites = async (type: 'income' | 'expense') => {
         ORDER BY sort_order ASC, id DESC;`);
 };
 
-export const getTransactions = async (
-    page = 1,
-    pageSize = 10,
-    filter?: {
-        type?: 'income' | 'expense' | 'all',
-        members?: number[],
-        searchText?: string
-    }
-) => {
+export const getTransactions = async (options?: {
+    page?: number;
+    pageSize?: number;
+    filter?: string;
+    memberIds?: number[];
+    searchText?: string;
+}) => {
     const db = await getDB();
-    const offset = (page - 1) * pageSize;
+    const {
+        page = 1,
+        pageSize = 10,
+        filter = 'all',
+        memberIds = [],
+        searchText = ''
+    } = options || {};
 
-    let query = `
-        SELECT t.*, m.name 
-        FROM transactions t
-        LEFT JOIN members m ON t.member_id = m.id
-    `;
-    const params: any[] = [];
+    try {
+        // 构建查询条件
+        let whereClause = '';
+        const whereParams: any[] = [];
 
-    const conditions: string[] = [];
-
-    if (filter?.type && filter.type !== 'all') {
-        conditions.push('t.type = ?');
-        params.push(filter.type);
-    }
-
-    if (filter?.members && filter.members.length > 0) {
-        conditions.push(`t.member_id IN (${filter.members.map(() => '?').join(',')})`);
-        params.push(...filter.members);
-    }
-
-    if (filter?.searchText) {
-        conditions.push(`(
-            t.note LIKE ? OR 
-            t.category LIKE ? OR 
-            m.name LIKE ?
-        )`);
-        const searchPattern = `%${filter.searchText}%`;
-        params.push(searchPattern, searchPattern, searchPattern);
-    }
-
-    if (conditions.length > 0) {
-        query += ` WHERE ${conditions.join(' AND ')}`;
-    }
-
-    query += ` ORDER BY t.date DESC, t.created_at DESC LIMIT ?`;
-    params.push(pageSize + 1); // 多获取一条记录用于判断是否有下一页
-
-    const transactions = await db.getAllAsync(query, params);
-    const hasMore = transactions.length > pageSize;
-
-    // 移除多余的记录
-    if (hasMore) {
-        transactions.pop();
-    }
-
-    // 按日期分组
-    const grouped = transactions.reduce((acc: { [key: string]: any[] }, curr: any) => {
-        const date = curr.date;
-        if (!acc[date]) {
-            acc[date] = [];
+        // 根据过滤条件筛选
+        if (filter === 'income') {
+            whereClause += 'WHERE t.type = ?';
+            whereParams.push('income');
+        } else if (filter === 'expense') {
+            whereClause += 'WHERE t.type = ?';
+            whereParams.push('expense');
+        } else {
+            whereClause += 'WHERE 1=1';
         }
-        acc[date].push(curr);
-        return acc;
-    }, {});
 
-    return {
-        transactions: grouped,
-        hasMore
-    };
+        // 根据成员ID筛选
+        if (memberIds.length > 0) {
+            whereClause += ' AND t.member_id IN (' + memberIds.map(() => '?').join(',') + ')';
+            whereParams.push(...memberIds);
+        }
+
+        // 根据搜索文本筛选
+        if (searchText) {
+            whereClause += ' AND (t.note LIKE ? OR t.category LIKE ? OR m.name LIKE ?)';
+            const searchPattern = `%${searchText}%`;
+            whereParams.push(searchPattern, searchPattern, searchPattern);
+        }
+
+        // 获取总记录数
+        const countResult = await db.getAllAsync<{ total: number }>(
+            `SELECT COUNT(*) as total FROM transactions t
+             LEFT JOIN members m ON t.member_id = m.id
+             ${whereClause}`,
+            whereParams
+        );
+        const total = countResult[0].total;
+
+        // 构建分页查询
+        let limitClause = '';
+        if (page > 0 && pageSize > 0) {
+            // 正常分页
+            const offset = (page - 1) * pageSize;
+            limitClause = `LIMIT ${pageSize} OFFSET ${offset}`;
+        }
+        // 如果 page 或 pageSize 为负数，则不添加 LIMIT 子句，返回所有记录
+
+        // 获取交易记录
+        const transactions: any = await db.getAllAsync(
+            `SELECT t.*, m.name as member FROM transactions t
+             LEFT JOIN members m ON t.member_id = m.id
+             ${whereClause}
+             ORDER BY t.date DESC, t.id DESC
+             ${limitClause}`,
+            whereParams
+        );
+
+        // 获取每个交易的标签
+        for (const transaction of transactions) {
+            const tags = await db.getAllAsync(
+                `SELECT tag_id FROM transaction_tags WHERE transaction_id = ?`,
+                [transaction?.id]
+            );
+            transaction.tags = tags.map((t: any) => t.tag_id);
+        }
+
+        return {
+            transactions,
+            total,
+            page,
+            pageSize,
+            hasMore: pageSize > 0 ? Math.ceil(total / pageSize) > page : false,
+            totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 1
+        };
+    } catch (error) {
+        console.error('Failed to get transactions:', error);
+        throw error;
+    }
 };
 
 export const deleteFavorite = async (type: 'income' | 'expense', id: number) => {
