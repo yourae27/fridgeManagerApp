@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput, Modal, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import i18n from '../i18n';
-import { generateExcel } from '../utils/excel';
+import { generateExcel, importExcel } from '../utils/excel';
 import EmptyState from '../components/EmptyState';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import { useTransactionContext } from '../context/TransactionContext';
 
 interface MenuItem {
     id: string;
@@ -22,10 +25,13 @@ const PREMIUM_STATUS_KEY = 'premium_status';
 
 const Profile = () => {
     const [showExportModal, setShowExportModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
     const [email, setEmail] = useState('');
     const [isPremium, setIsPremium] = useState(false);
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [importLoading, setImportLoading] = useState(false);
+    const { triggerRefresh } = useTransactionContext();
 
     useEffect(() => {
         // 检查用户是否已购买高级版
@@ -97,6 +103,52 @@ const Profile = () => {
         }
     };
 
+    const handleImport = async () => {
+        try {
+            setImportLoading(true);
+
+            // 选择文件
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                copyToCacheDirectory: true
+            });
+
+            if (result.canceled) {
+                setImportLoading(false);
+                return;
+            }
+
+            const fileUri = result.assets[0].uri;
+
+            // 检查文件是否存在
+            const fileInfo = await FileSystem.getInfoAsync(fileUri);
+            if (!fileInfo.exists) {
+                Alert.alert(i18n.t('common.error'), i18n.t('profile.import.fileNotFound'));
+                setImportLoading(false);
+                return;
+            }
+
+            // 导入Excel
+            const importCount = await importExcel(fileUri);
+
+            // 刷新交易列表
+            triggerRefresh();
+
+            // 显示成功消息
+            Alert.alert(
+                i18n.t('profile.import.success'),
+                i18n.t('profile.import.successMessage').replace('{count}', importCount.toString())
+            );
+
+            setShowImportModal(false);
+        } catch (error) {
+            console.error('Import failed:', error);
+            Alert.alert(i18n.t('common.error'), i18n.t('profile.import.failed'));
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
     const handleTagsPress = () => {
         if (isPremium) {
             router.push('/screens/tags');
@@ -152,12 +204,57 @@ const Profile = () => {
         </Modal>
     );
 
+    const renderImportModal = () => (
+        <Modal
+            visible={showImportModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => !importLoading && setShowImportModal(false)}
+        >
+            <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={() => !importLoading && setShowImportModal(false)}
+            >
+                <View style={styles.importModal} onStartShouldSetResponder={() => true}>
+                    <Text style={styles.importTitle}>{i18n.t('profile.import.title')}</Text>
+
+                    <Text style={styles.importInstructions}>
+                        {i18n.t('profile.import.instructions')}
+                    </Text>
+
+                    {importLoading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#dc4446" />
+                            <Text style={styles.loadingText}>{i18n.t('profile.import.processing')}</Text>
+                        </View>
+                    ) : (
+                        <View style={styles.importButtons}>
+                            <TouchableOpacity
+                                style={[styles.importButton, styles.cancelButton]}
+                                onPress={() => setShowImportModal(false)}
+                            >
+                                <Text style={styles.importButtonText}>{i18n.t('common.cancel')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.importButton, styles.confirmButton]}
+                                onPress={handleImport}
+                            >
+                                <Text style={styles.importButtonText}>{i18n.t('profile.import.selectFile')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+            </TouchableOpacity>
+        </Modal>
+    );
+
     const renderPremiumModal = () => (
         <Modal
             visible={showPremiumModal}
             transparent={true}
             animationType="fade"
-            onRequestClose={() => setShowPremiumModal(false)}
+            onRequestClose={() => !isLoading && setShowPremiumModal(false)}
         >
             <TouchableOpacity
                 style={styles.modalOverlay}
@@ -184,11 +281,11 @@ const Profile = () => {
                         onPress={handlePurchasePremium}
                         disabled={isLoading}
                     >
-                        <Text style={styles.purchaseButtonText}>
-                            {isLoading
-                                ? i18n.t('common.loading')
-                                : i18n.t('profile.premium.purchase')}
-                        </Text>
+                        {isLoading ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Text style={styles.purchaseButtonText}>{i18n.t('profile.premium.purchase')}</Text>
+                        )}
                     </TouchableOpacity>
 
                     {!isLoading && (
@@ -220,6 +317,13 @@ const Profile = () => {
             onPress: () => setShowExportModal(true),
         },
         {
+            id: 'import',
+            title: i18n.t('profile.importExcel'),
+            icon: 'cloud-upload-outline',
+            color: '#FF5722',
+            onPress: () => setShowImportModal(true),
+        },
+        {
             id: 'categories',
             title: i18n.t('profile.manageCategories'),
             icon: 'list-outline',
@@ -245,7 +349,7 @@ const Profile = () => {
             id: 'rate',
             title: i18n.t('profile.rateApp'),
             icon: 'star-outline',
-            color: '#F5A623',
+            color: '#FFC107',
             onPress: handleRateApp,
         },
     ];
@@ -287,6 +391,7 @@ const Profile = () => {
             </ScrollView>
 
             {renderExportModal()}
+            {renderImportModal()}
             {renderPremiumModal()}
         </View>
     );
@@ -404,6 +509,45 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 8,
     },
+    importModal: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 20,
+        width: '80%',
+        alignSelf: 'center',
+    },
+    importTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    importInstructions: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    importButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    importButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: '#666',
+    },
     confirmButton: {
         backgroundColor: '#dc4446',
     },
@@ -411,6 +555,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#666',
     },
     exportButtonText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    importButtonText: {
         color: 'white',
         fontSize: 14,
         fontWeight: '500',

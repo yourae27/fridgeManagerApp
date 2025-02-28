@@ -66,7 +66,8 @@
         "noTags": "No tags",
         "clickAddButtonToAddTag": "Click the plus button in the top right corner to add tag",
         "addNewTag": "Add New Tag",
-        "tagName": "Tag name"
+        "tagName": "Tag name",
+        "emailUnavailable": "Email function is not available"
     },
     "home": {
         "title": "Home",
@@ -125,9 +126,22 @@
             "invalidEmail": "Please enter a valid email address",
             "success": "Export Successful",
             "sent": "The export file has been sent to your email",
-            "failed": "Export failed, please try again later"
+            "failed": "Export failed, please try again later",
+            "emailUnavailable": "Email function is not available"
         },
-        "rateApp": "Rate App"
+        "rateApp": "Rate App",
+        "importExcel": "Import Excel",
+        "import": {
+            "title": "Import Transactions",
+            "selectFile": "Select Excel File",
+            "processing": "Processing...",
+            "success": "Import Successful",
+            "successMessage": "Successfully imported {count} transactions",
+            "failed": "Import Failed",
+            "invalidFormat": "Invalid file format. Please use Excel (.xlsx) file",
+            "fileNotFound": "File not found",
+            "instructions": "The Excel file should have columns in this order: Date, Type (income/expense), Category, Amount, Note"
+        }
     },
     "settings": {
         "title": "Settings",

@@ -66,7 +66,8 @@
         "noTags": "暂无标签",
         "clickAddButtonToAddTag": "点击右上角的加号按钮添加标签吧",
         "addNewTag": "添加新标签",
-        "tagName": "标签名称"
+        "tagName": "标签名称",
+        "emailUnavailable": "邮件功能不可用"
     },
     "home": {
         "title": "首页",
@@ -125,9 +126,22 @@
             "invalidEmail": "请输入有效的邮箱地址",
             "success": "导出成功",
             "sent": "导出文件已发送到您的邮箱",
-            "failed": "导出失败，请稍后重试"
+            "failed": "导出失败，请稍后重试",
+            "emailUnavailable": "邮件功能不可用"
         },
-        "rateApp": "评价应用"
+        "rateApp": "评价应用",
+        "importExcel": "导入Excel",
+        "import": {
+            "title": "导入交易记录",
+            "selectFile": "选择Excel文件",
+            "processing": "处理中...",
+            "success": "导入成功",
+            "successMessage": "成功导入 {count} 条交易记录",
+            "failed": "导入失败",
+            "invalidFormat": "文件格式无效。请使用Excel (.xlsx) 文件",
+            "fileNotFound": "未找到文件",
+            "instructions": "Excel文件应按以下顺序排列列：日期、类型（收入/支出）、分类、金额、备注"
+        }
     },
     "settings": {
         "title": "设置",
