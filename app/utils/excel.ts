@@ -13,6 +13,7 @@ interface ExportData {
     备注: string;
     成员: string;
     状态: string;
+    标签: string;
 }
 
 // 生成Excel文件并返回文件路径
@@ -37,7 +38,8 @@ const createExcelFile = async (): Promise<string> => {
         分类: t.category,
         备注: t.note || '',
         成员: t.member,
-        状态: t.refunded ? '已退款' : '正常'
+        状态: t.refunded ? '已退款' : '正常',
+        标签: t.tags.join(',')
     }));
 
     // 创建工作簿和工作表
