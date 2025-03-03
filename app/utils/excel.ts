@@ -40,19 +40,23 @@ const createExcelFile = async (): Promise<string> => {
         状态: t.refunded ? '已退款' : '正常'
     }));
 
-    // 生成CSV内容
-    let csvContent = '日期,类型,金额,分类,备注,成员,状态\n';
-    data.forEach(row => {
-        csvContent += `${row.日期},${row.类型},${row.金额},${row.分类},${row.备注},${row.成员},${row.状态}\n`;
-    });
+    // 创建工作簿和工作表
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "交易记录");
 
     // 生成文件名
     const date = new Date();
-    const fileName = `NineCents_${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}.csv`;
+    const fileName = `NineCents_${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+
+    // 将工作簿写入二进制字符串
+    const wbout = XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
 
     // 保存文件
-    const filePath = `${FileSystem.documentDirectory}${fileName}`;
-    await FileSystem.writeAsStringAsync(filePath, csvContent);
+    const filePath = `${FileSystem.documentDirectory}${fileName}.xlsx`;
+    await FileSystem.writeAsStringAsync(filePath, wbout, {
+        encoding: FileSystem.EncodingType.Base64
+    });
 
     return filePath;
 };
@@ -96,9 +100,9 @@ export const exportToLocal = async (): Promise<void> => {
 
         // 分享文件
         await Sharing.shareAsync(filePath, {
-            mimeType: 'text/csv',
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             dialogTitle: i18n.t('profile.export.saveFile'),
-            UTI: 'public.comma-separated-values-text'
+            UTI: 'org.openxmlformats.spreadsheetml.sheet'
         });
 
         return;
