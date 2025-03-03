@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as MailComposer from 'expo-mail-composer';
 import * as Sharing from 'expo-sharing';
-import { getTransactions, addTransaction, getCategories } from '../constants/Storage';
+import { getTransactions, addTransaction, getCategories, getTags, addCategory, addTag, getMembers, addMember } from '../constants/Storage';
 import * as XLSX from 'xlsx';
 import i18n from '../i18n';
 
@@ -27,20 +27,31 @@ const createExcelFile = async (): Promise<string> => {
         searchText: ''
     });
 
+    // 获取所有标签，用于将标签ID转换为标签名称
+    const allTags = await getTags();
+    const tagMap = new Map(allTags.map(tag => [tag.id, tag.name]));
+
     // 需要将transactions按日期分组后再展平
     const flatTransactions = transactions;
 
     // 转换数据格式
-    const data: ExportData[] = flatTransactions.map((t: any) => ({
-        日期: t.date,
-        类型: t.type === 'income' ? '收入' : '支出',
-        金额: Math.abs(t.amount).toFixed(2),
-        分类: t.category,
-        备注: t.note || '',
-        成员: t.member,
-        状态: t.refunded ? '已退款' : '正常',
-        标签: t.tags.join(',')
-    }));
+    const data: ExportData[] = flatTransactions.map((t: any) => {
+        // 将标签ID数组转换为标签名称字符串
+        const tagNames = Array.isArray(t.tags)
+            ? t.tags.map((tagId: number) => tagMap.get(tagId) || '').filter(Boolean).join(',')
+            : '';
+
+        return {
+            日期: t.date,
+            类型: t.type === 'income' ? '收入' : '支出',
+            金额: Math.abs(t.amount).toFixed(2),
+            分类: t.category,
+            备注: t.note || '',
+            成员: t.member,
+            状态: t.refunded ? '已退款' : '正常',
+            标签: tagNames
+        };
+    });
 
     // 创建工作簿和工作表
     const worksheet = XLSX.utils.json_to_sheet(data);
@@ -128,11 +139,49 @@ export const importExcel = async (fileUri: string): Promise<number> => {
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
-        // 将工作表转换为JSON
-        const data = XLSX.utils.sheet_to_json(worksheet);
+        // 将工作表转换为JSON，保留表头
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 'A' });
 
-        if (!data || data.length === 0) {
+        if (!data || data.length < 2) { // 至少需要表头行和一行数据
             throw new Error('No data found in the Excel file');
+        }
+
+        // 获取表头行
+        const headerRow = data[0] as any;
+
+        // 创建列映射
+        const columnMap: { [key: string]: string } = {};
+
+        // 定义可能的列名映射
+        const possibleHeaders = {
+            date: ['日期', 'date', '时间', 'time', '交易日期', 'transaction date'],
+            type: ['类型', 'type', '交易类型', 'transaction type', '收支类型'],
+            category: ['分类', 'category', '类别', '交易分类'],
+            amount: ['金额', 'amount', '交易金额', '数额'],
+            note: ['备注', 'note', '说明', 'description', '描述', 'memo'],
+            member: ['成员', 'member', '用户', 'user', '人员'],
+            tags: ['标签', 'tags', 'tag', '标记']
+        };
+
+        // 遍历表头，建立列映射
+        Object.keys(headerRow).forEach(colKey => {
+            const headerValue = String(headerRow[colKey]).toLowerCase().trim();
+
+            // 检查这个表头值属于哪个字段
+            for (const [field, possibleNames] of Object.entries(possibleHeaders)) {
+                if (possibleNames.some(name => headerValue.includes(name.toLowerCase()))) {
+                    columnMap[field] = colKey;
+                    break;
+                }
+            }
+        });
+
+        // 检查必要的列是否存在
+        const requiredColumns = ['date', 'type', 'category', 'amount'];
+        const missingColumns = requiredColumns.filter(col => !columnMap[col]);
+
+        if (missingColumns.length > 0) {
+            throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
         }
 
         // 获取所有分类
@@ -140,21 +189,31 @@ export const importExcel = async (fileUri: string): Promise<number> => {
         const incomeCategories = categories.filter(c => c.type === 'income').map(c => c.name);
         const expenseCategories = categories.filter(c => c.type === 'expense').map(c => c.name);
 
-        // 导入交易记录
+        // 获取所有标签
+        const allTags = await getTags();
+        const tagMap = new Map(allTags.map(tag => [tag.name, tag.id]));
+
+        // 获取所有成员
+        const members = await getMembers();
+        const memberMap = new Map(members.map(member => [member.name, member.id]));
+
+        // 导入交易记录，跳过表头行
         let importCount = 0;
 
-        for (const row of data) {
-            const rowData = row as any;
+        for (let i = 1; i < data.length; i++) {
+            const rowData = data[i] as any;
 
             // 获取各列数据
-            const keys = Object.keys(rowData);
-            if (keys.length < 4) continue; // 至少需要4列数据
+            const date = rowData[columnMap.date];
+            const type = rowData[columnMap.type];
+            const category = rowData[columnMap.category];
+            const amount = rowData[columnMap.amount];
+            const note = columnMap.note ? rowData[columnMap.note] : '';
+            const tagsString = columnMap.tags ? rowData[columnMap.tags] : '';
+            const memberName = columnMap.member ? rowData[columnMap.member] : '';
 
-            const date = rowData[keys[0]];
-            const type = rowData[keys[1]];
-            const category = rowData[keys[2]];
-            const amount = rowData[keys[3]];
-            const note = keys.length > 4 ? rowData[keys[4]] : '';
+            // 如果关键字段为空，跳过此行
+            if (!date || !type || !category || !amount) continue;
 
             // 验证和转换数据
             let transactionDate: string;
@@ -192,14 +251,32 @@ export const importExcel = async (fileUri: string): Promise<number> => {
                 transactionType = 'expense';
             }
 
-            // 验证分类
+            // 验证分类，如果不存在则创建
             let transactionCategory = category?.toString() || '';
-            if (transactionType === 'income' && !incomeCategories.includes(transactionCategory)) {
-                // 如果收入分类不存在，使用第一个收入分类
-                transactionCategory = incomeCategories[0] || '其他收入';
-            } else if (transactionType === 'expense' && !expenseCategories.includes(transactionCategory)) {
-                // 如果支出分类不存在，使用第一个支出分类
-                transactionCategory = expenseCategories[0] || '其他支出';
+            let categoryIcon = '📊'; // 默认图标
+
+            if (transactionType === 'income') {
+                if (!incomeCategories.includes(transactionCategory)) {
+                    // 如果收入分类不存在，创建新分类
+                    await addCategory({
+                        type: 'income',
+                        name: transactionCategory,
+                        icon: categoryIcon
+                    });
+                    // 更新分类列表
+                    incomeCategories.push(transactionCategory);
+                }
+            } else {
+                if (!expenseCategories.includes(transactionCategory)) {
+                    // 如果支出分类不存在，创建新分类
+                    await addCategory({
+                        type: 'expense',
+                        name: transactionCategory,
+                        icon: categoryIcon
+                    });
+                    // 更新分类列表
+                    expenseCategories.push(transactionCategory);
+                }
             }
 
             // 验证金额
@@ -219,17 +296,74 @@ export const importExcel = async (fileUri: string): Promise<number> => {
                 transactionAmount = -transactionAmount;
             }
 
+            // 处理标签
+            const transactionTags: number[] = [];
+            if (tagsString) {
+                const tagNames = String(tagsString).split(',').map(t => t.trim()).filter(Boolean);
+
+                for (const tagName of tagNames) {
+                    if (tagMap.has(tagName)) {
+                        // 如果标签已存在，使用现有标签ID
+                        transactionTags.push(tagMap.get(tagName)!);
+                    } else {
+                        // 如果标签不存在，创建新标签
+                        try {
+                            const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
+                            const newTagId = await addTag({
+                                name: tagName,
+                                color: randomColor
+                            });
+
+                            // 更新标签映射
+                            tagMap.set(tagName, newTagId as any);
+                            transactionTags.push(newTagId as any);
+                        } catch (error) {
+                            console.error(`Failed to create tag: ${tagName}`, error);
+                        }
+                    }
+                }
+            }
+
+            // 处理成员
+            let memberId = 1; // 默认成员ID
+            if (memberName) {
+                if (memberMap.has(memberName)) {
+                    memberId = memberMap.get(memberName)!;
+                } else {
+                    // 如果成员不存在，创建新成员
+                    try {
+                        await addMember({
+                            name: memberName,
+                            budget: undefined // 默认预算为空
+                        });
+
+                        // 获取新创建成员的ID
+                        const newMemberId = await getMembers().then(members =>
+                            members.find(m => m.name === memberName)?.id || 1
+                        );
+
+                        // 更新成员映射
+                        memberMap.set(memberName, newMemberId);
+                        memberId = newMemberId;
+                        console.log(`Created new member: ${memberName} with ID: ${memberId}`);
+                    } catch (error) {
+                        console.error(`Failed to create member: ${memberName}`, error);
+                        console.log(`Using default member instead`);
+                    }
+                }
+            }
+
             // 添加交易记录
             await addTransaction({
                 type: transactionType,
                 amount: transactionAmount,
                 category: transactionCategory,
-                categoryIcon: '',
+                categoryIcon: categoryIcon,
                 note: note?.toString() || '',
                 date: transactionDate,
-                member_id: 1, // 默认成员ID
+                member_id: memberId,
                 refunded: false,
-                tags: [] // 默认无标签
+                tags: transactionTags
             });
 
             importCount++;
