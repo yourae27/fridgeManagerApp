@@ -2,16 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Alert, Modal, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { getCategories, addCategory, deleteCategory, updateCategoryOrder } from '../constants/Storage';
-import { Swipeable } from 'react-native-gesture-handler';
-import { useCategoryContext } from '../context/CategoryContext';
+import { getCategories, addCategory, deleteCategory, updateCategoryOrder, updateCategory } from '../constants/Storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    runOnJS,
-} from 'react-native-reanimated';
+import { useCategoryContext } from '../context/CategoryContext';
 import DraggableFlatList, {
     ScaleDecorator,
     RenderItemParams,
@@ -35,15 +28,20 @@ const EMOJI_LIST = [
 ];
 
 const Categories = () => {
-    const { initialTab } = useLocalSearchParams<{ initialTab: 'income' | 'expense' }>();
-    const [activeTab, setActiveTab] = useState<'income' | 'expense'>(initialTab || 'expense');
+    const params = useLocalSearchParams();
+    const initialTab = params.initialTab as string || 'expense';
+    const [activeTab, setActiveTab] = useState<'income' | 'expense'>(initialTab as 'income' | 'expense');
     const [categories, setCategories] = useState<Category[]>([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
-    const [selectedEmoji, setSelectedEmoji] = useState(EMOJI_LIST[0]);
-    const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
+    const [selectedEmoji, setSelectedEmoji] = useState('💰');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const { triggerRefresh } = useCategoryContext();
+    const swipeableRefs = useRef<any>({});
+
+    // 编辑状态
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
     const loadCategories = async () => {
         try {
@@ -60,12 +58,7 @@ const Categories = () => {
 
     const handleAddCategory = async () => {
         if (!newCategoryName.trim()) {
-            Alert.alert('提示', '请输入分类名称');
-            return;
-        }
-
-        if (newCategoryName.length > 10) {
-            Alert.alert('提示', '分类名称不能超过10个字符');
+            Alert.alert(i18n.t('categories.categoryNameRequired'));
             return;
         }
 
@@ -82,26 +75,165 @@ const Categories = () => {
             triggerRefresh();
         } catch (error) {
             console.error('Failed to add category:', error);
-            Alert.alert('错误', '添加分类失败');
+            Alert.alert(i18n.t('categories.addCategoryFailed'));
+        }
+    };
+
+    const handleEditCategory = (category: Category) => {
+        setIsEditing(true);
+        setEditingCategory(category);
+        setNewCategoryName(category.name);
+        setSelectedEmoji(category.icon);
+        setShowAddForm(true);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingCategory || !newCategoryName.trim()) {
+            Alert.alert(i18n.t('categories.categoryNameRequired'));
+            return;
+        }
+
+        try {
+            await updateCategory(editingCategory.id, {
+                name: newCategoryName.trim(),
+                icon: selectedEmoji
+            });
+
+            setIsEditing(false);
+            setEditingCategory(null);
+            setNewCategoryName('');
+            setSelectedEmoji(EMOJI_LIST[0]);
+            setShowAddForm(false);
+            loadCategories();
+            triggerRefresh();
+        } catch (error) {
+            console.error('Failed to update category:', error);
+            Alert.alert(i18n.t('categories.updateCategoryFailed'));
         }
     };
 
     const handleDeleteCategory = async (id: number) => {
+        Alert.alert(
+            i18n.t('categories.confirmDelete'),
+            i18n.t('categories.confirmDeleteMessage'),
+            [
+                { text: i18n.t('common.cancel'), style: 'cancel' },
+                {
+                    text: i18n.t('common.delete'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteCategory(id);
+                            loadCategories();
+                            triggerRefresh();
+                        } catch (error) {
+                            console.error('Failed to delete category:', error);
+                            Alert.alert(i18n.t('categories.deleteCategoryFailed'));
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleDragEnd = async ({ data }: { data: Category[] }) => {
+        setCategories(data);
         try {
-            await deleteCategory(id);
-            loadCategories();
+            const updatedItems = data.map((item, index) => ({
+                id: item.id,
+                sort_order: index,
+            }));
+            await updateCategoryOrder(updatedItems);
             triggerRefresh();
         } catch (error) {
-            console.error('Failed to delete category:', error);
-            Alert.alert('Error', 'Failed to delete category');
+            console.error('Failed to update category order:', error);
         }
     };
 
     const closeAllSwipeables = () => {
-        Object.values(swipeableRefs.current).forEach(ref => {
-            ref?.close();
+        Object.values(swipeableRefs.current).forEach((ref: any) => {
+            if (ref && ref.close) {
+                ref.close();
+            }
         });
     };
+
+    const renderItem = ({ item, drag, isActive }: RenderItemParams<Category>) => {
+        return (
+            <ScaleDecorator>
+                <TouchableOpacity
+                    onLongPress={drag}
+                    disabled={isActive}
+                    style={[
+                        styles.categoryItem,
+                        isActive && styles.categoryItemActive
+                    ]}
+                >
+                    <View style={styles.categoryInfo}>
+                        <Text style={styles.categoryIcon}>{item.icon}</Text>
+                        <Text style={styles.categoryName}>{item.name}</Text>
+                    </View>
+                    <View style={styles.categoryActions}>
+                        <TouchableOpacity
+                            style={styles.actionIcon}
+                            onPress={() => handleEditCategory(item)}
+                        >
+                            <Ionicons name="pencil" size={20} color="#4A90E2" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.actionIcon}
+                            onPress={() => handleDeleteCategory(item.id)}
+                        >
+                            <Ionicons name="trash" size={20} color="#dc4446" />
+                        </TouchableOpacity>
+                        <Ionicons name="menu" size={24} color="#666" />
+                    </View>
+                </TouchableOpacity>
+            </ScaleDecorator>
+        );
+    };
+
+    const renderAddForm = () => (
+        <View style={styles.addForm}>
+            <Text style={styles.modalTitle}>
+                {isEditing ? i18n.t('categories.editCategory') : i18n.t('categories.addCategory')}
+            </Text>
+            <View style={styles.formRow}>
+                <TextInput
+                    style={styles.input}
+                    placeholder={i18n.t('categories.categoryName')}
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                />
+                <TouchableOpacity
+                    style={styles.emojiButton}
+                    onPress={() => setShowEmojiPicker(true)}
+                >
+                    <Text style={styles.emojiText}>{selectedEmoji}</Text>
+                </TouchableOpacity>
+            </View>
+            <View style={styles.formButtons}>
+                <TouchableOpacity
+                    style={[styles.button, styles.cancelButton]}
+                    onPress={() => {
+                        setShowAddForm(false);
+                        setIsEditing(false);
+                        setEditingCategory(null);
+                        setNewCategoryName('');
+                        setSelectedEmoji(EMOJI_LIST[0]);
+                    }}
+                >
+                    <Text style={styles.cancelButtonText}>{i18n.t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.button, styles.saveButton]}
+                    onPress={isEditing ? handleSaveEdit : handleAddCategory}
+                >
+                    <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
 
     const renderEmojiPicker = () => (
         <Modal
@@ -117,7 +249,7 @@ const Categories = () => {
             >
                 <View style={styles.emojiPickerContainer}>
                     <View style={styles.emojiPickerHeader}>
-                        <Text style={styles.emojiPickerTitle}>Select Icon</Text>
+                        <Text style={styles.emojiPickerTitle}>{i18n.t('categories.selectIcon')}</Text>
                         <TouchableOpacity onPress={() => setShowEmojiPicker(false)}>
                             <Ionicons name="close" size={24} color="#666" />
                         </TouchableOpacity>
@@ -146,152 +278,65 @@ const Categories = () => {
         </Modal>
     );
 
-    const onDragEnd = async ({ data }: { data: Category[] }) => {
-        setCategories(data);
-        // 更新数据库中的排序
-        await updateCategoryOrder(
-            data.map((item, index) => ({
-                id: item.id,
-                sort_order: index
-            }))
-        );
-    };
-
-    const renderItem = ({ item, drag, isActive }: RenderItemParams<Category>) => {
-        return (
-            <ScaleDecorator>
-                <Animated.View>
-                    <Swipeable
-                        ref={ref => {
-                            if (ref) {
-                                swipeableRefs.current[item.id] = ref;
-                            }
-                        }}
-                        renderRightActions={() => (
-                            <TouchableOpacity
-                                style={styles.deleteButton}
-                                onPress={() => handleDeleteCategory(item.id)}
-                            >
-                                <Ionicons name="trash-outline" size={24} color="white" />
-                            </TouchableOpacity>
-                        )}
-                        onSwipeableOpen={() => {
-                            Object.entries(swipeableRefs.current).forEach(([key, ref]) => {
-                                if (Number(key) !== item.id) {
-                                    ref?.close();
-                                }
-                            });
-                        }}
-                    >
-                        <TouchableOpacity
-                            onLongPress={drag}
-                            disabled={isActive}
-                            style={[
-                                styles.categoryItem,
-                                isActive && styles.categoryItemActive
-                            ]}
-
-                        >
-                            <View style={styles.categoryInfo}>
-                                <Text style={styles.categoryIcon}>{item.icon}</Text>
-                                <Text style={styles.categoryName}>{item.name}</Text>
-                            </View>
-                            <Ionicons name="menu" size={24} color="#666" />
-                        </TouchableOpacity>
-                    </Swipeable>
-                </Animated.View>
-            </ScaleDecorator>
-        );
-    };
-
     return (
-        <View style={styles.container} onTouchStart={closeAllSwipeables}>
-            <View style={styles.tabs}>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'expense' && styles.activeTab]}
-                    onPress={() => setActiveTab('expense')}
-                >
-                    <Text style={[
-                        styles.tabText,
-                        activeTab === 'expense' && styles.activeTabText
-                    ]}>{i18n.t('common.expense')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'income' && styles.activeTab]}
-                    onPress={() => setActiveTab('income')}
-                >
-                    <Text style={[
-                        styles.tabText,
-                        activeTab === 'income' && styles.activeTabText
-                    ]}>{i18n.t('common.income')}</Text>
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.scrollView}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>
-                        {activeTab === 'income' ? i18n.t('categories.income') : i18n.t('categories.expense')}
-                    </Text>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <View style={styles.container} onTouchStart={closeAllSwipeables}>
+                <View style={styles.tabs}>
                     <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => setShowAddForm(true)}
+                        style={[styles.tab, activeTab === 'expense' && styles.activeTab]}
+                        onPress={() => setActiveTab('expense')}
                     >
-                        <Ionicons name="add" size={24} color="#dc4446" />
+                        <Text style={[
+                            styles.tabText,
+                            activeTab === 'expense' && styles.activeTabText
+                        ]}>{i18n.t('categories.expense')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'income' && styles.activeTab]}
+                        onPress={() => setActiveTab('income')}
+                    >
+                        <Text style={[
+                            styles.tabText,
+                            activeTab === 'income' && styles.activeTabText
+                        ]}>{i18n.t('categories.income')}</Text>
                     </TouchableOpacity>
                 </View>
-                {showAddForm && (
-                    <View style={styles.addForm}>
-                        <View style={styles.formRow}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder={i18n.t('categories.categoryName')}
-                                value={newCategoryName}
-                                onChangeText={setNewCategoryName}
-                            />
-                            <TouchableOpacity
-                                style={styles.emojiButton}
-                                onPress={() => setShowEmojiPicker(true)}
-                            >
-                                <Text style={styles.emojiText}>{selectedEmoji}</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.formButtons}>
-                            <TouchableOpacity
-                                style={[styles.button, styles.cancelButton]}
-                                onPress={() => setShowAddForm(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>{i18n.t('common.cancel')}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.button, styles.saveButton]}
-                                onPress={handleAddCategory}
-                            >
-                                <Text style={styles.saveButtonText}>{i18n.t('common.save')}</Text>
-                            </TouchableOpacity>
 
-                        </View>
-                    </View>
+                <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={() => {
+                        setIsEditing(false);
+                        setEditingCategory(null);
+                        setNewCategoryName('');
+                        setSelectedEmoji(EMOJI_LIST[0]);
+                        setShowAddForm(true);
+                    }}
+                >
+                    <Ionicons name="add" size={24} color="white" />
+                    <Text style={styles.addButtonText}>{i18n.t('categories.addCategory')}</Text>
+                </TouchableOpacity>
 
-                )}
-                {categories.length === 0 && (
+                {showAddForm && renderAddForm()}
+
+                {categories.length === 0 ? (
                     <EmptyState
-                        icon="list-outline"
+                        icon="grid-outline"
                         title={i18n.t('categories.noCategories')}
-                        description={i18n.t('categories.addCategory')}
+                        description=""
                     />
-                )}
-
-                <View style={styles.list}>
+                ) : (
                     <DraggableFlatList
                         data={categories}
-                        onDragEnd={onDragEnd}
-                        keyExtractor={item => item.id.toString()}
+                        onDragEnd={handleDragEnd}
+                        keyExtractor={(item) => item.id.toString()}
                         renderItem={renderItem}
+                        contentContainerStyle={styles.list}
                     />
-                </View>
+                )}
+
+                {renderEmojiPicker()}
             </View>
-            {renderEmojiPicker()}
-        </View>
+        </GestureHandlerRootView>
     );
 };
 
@@ -299,36 +344,90 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f5f5f5',
-    },
-    scrollView: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         padding: 20,
     },
-    title: {
-        fontSize: 20,
-        fontWeight: '600',
+    tabs: {
+        flexDirection: 'row',
+        backgroundColor: 'white',
+        borderRadius: 12,
+        marginBottom: 20,
+        padding: 4,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    activeTab: {
+        backgroundColor: '#fff1f1',
+    },
+    tabText: {
+        fontSize: 16,
+        color: '#666',
+    },
+    activeTabText: {
+        color: '#dc4446',
+        fontWeight: '500',
     },
     addButton: {
-        padding: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#dc4446',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 20,
+    },
+    addButtonText: {
+        color: 'white',
+        fontSize: 16,
+        marginLeft: 8,
+    },
+    list: {
+        paddingBottom: 20,
+    },
+    categoryItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'white',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    categoryItemActive: {
+        backgroundColor: '#f0f0f0',
+    },
+    categoryInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    categoryIcon: {
+        fontSize: 24,
+    },
+    categoryName: {
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     addForm: {
         backgroundColor: 'white',
+        borderRadius: 16,
         padding: 20,
-        margin: 20,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 16,
+        textAlign: 'center',
     },
     formRow: {
         flexDirection: 'row',
@@ -337,20 +436,20 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
-        padding: 12,
+        borderWidth: 1,
+        borderColor: '#ddd',
         borderRadius: 8,
+        padding: 12,
         fontSize: 16,
     },
     emojiButton: {
-        width: 48,
-        height: 48,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: 50,
+        height: 50,
         borderWidth: 1,
-        borderColor: '#eee',
+        borderColor: '#ddd',
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     emojiText: {
         fontSize: 24,
@@ -365,97 +464,33 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         alignItems: 'center',
     },
-    cancelButton: {
-        backgroundColor: '#f5f5f5',
-    },
     saveButton: {
         backgroundColor: '#dc4446',
     },
-    cancelButtonText: {
-        color: '#666',
-        fontSize: 16,
+    cancelButton: {
+        backgroundColor: '#f5f5f5',
     },
     saveButtonText: {
         color: 'white',
         fontSize: 16,
         fontWeight: '500',
     },
-    list: {
-        padding: 20,
-    },
-    categoryItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: 'white',
-        borderRadius: 12,
-        marginBottom: 12,
-    },
-    categoryInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    categoryIcon: {
-        fontSize: 20,
-    },
-    categoryName: {
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    deleteButton: {
-        backgroundColor: '#dc4446',
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: 80,
-        height: '100%',
-        borderRadius: 12,
-    },
-    tabs: {
-        flexDirection: 'row',
-        backgroundColor: 'white',
-        paddingTop: 10,
-        paddingHorizontal: 20,
-    },
-    tab: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 12,
-        borderBottomWidth: 2,
-        borderBottomColor: 'transparent',
-    },
-    activeTab: {
-        borderBottomColor: '#dc4446',
-    },
-    tabText: {
-        fontSize: 16,
+    cancelButtonText: {
         color: '#666',
-    },
-    activeTabText: {
-        color: '#dc4446',
+        fontSize: 16,
         fontWeight: '500',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     emojiPickerContainer: {
-        width: '90%',
         backgroundColor: 'white',
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: 16,
+        padding: 20,
+        width: '80%',
         maxHeight: '80%',
     },
     emojiPickerHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
         marginBottom: 16,
     },
     emojiPickerTitle: {
@@ -463,30 +498,31 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     emojiItem: {
-        width: `${100 / 8}%`,
-        aspectRatio: 1,
+        width: 40,
+        height: 40,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 8,
+        margin: 4,
+        borderRadius: 8,
     },
     selectedEmojiItem: {
         backgroundColor: '#fff1f1',
-        borderRadius: 8,
     },
     emojiItemText: {
         fontSize: 24,
     },
-    categoryItemActive: {
+    categoryActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    actionIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: '#f5f5f5',
-        transform: [{ scale: 1.05 }],
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
 

@@ -764,3 +764,30 @@ export const updateSetting = async (key: string, value: string): Promise<void> =
         throw error;
     }
 };
+
+export const updateCategory = async (id: number, data: {
+    name?: string;
+    icon?: string;
+}): Promise<void> => {
+    const db = await getDB();
+
+    try {
+        const updates = Object.entries(data)
+            .filter(([_, value]) => value !== undefined)
+            .map(([key, _]) => `${key} = ?`)
+            .join(', ');
+
+        const values = Object.entries(data)
+            .filter(([_, value]) => value !== undefined)
+            .map(([_, value]) => value);
+
+        await db.runAsync(`
+            UPDATE categories 
+            SET ${updates}
+            WHERE id = ?;
+        `, [...values, id]);
+    } catch (error) {
+        console.error('Failed to update category:', error);
+        throw error;
+    }
+};

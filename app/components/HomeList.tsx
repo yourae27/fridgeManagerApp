@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Modal, TextInput } from 'react-native';
-import { getTransactions, deleteTransaction, updateTransaction, getMembers, getTags } from '../constants/Storage';
+import { getTransactions, deleteTransaction, updateTransaction, getMembers, getTags, getCategories } from '../constants/Storage';
 import { router } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +48,13 @@ interface Tag {
   color: string;
 }
 
+interface Category {
+  id: number;
+  name: string;
+  icon: string;
+  type: 'income' | 'expense';
+}
+
 const HomeList = () => {
   const [transactions, setTransactions] = useState<GroupedTransactions>({});
   const { refreshTrigger } = useTransactionContext();
@@ -65,6 +72,8 @@ const HomeList = () => {
   const [showSearch, setShowSearch] = useState(false);
   const PAGE_SIZE = 10;
   const { currency } = useSettings();
+  const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
 
   // 计算每日总计
   const calculateDailyTotal = (transactions: Transaction[]): DailyTotal => {
@@ -125,10 +134,22 @@ const HomeList = () => {
     }
   };
 
+  // 加载分类数据
+  const loadCategories = async () => {
+    try {
+      const categories = await getCategories();
+      setIncomeCategories(categories.filter(c => c.type === 'income') as Category[]);
+      setExpenseCategories(categories.filter(c => c.type === 'expense') as Category[]);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
+
   useEffect(() => {
     loadMembers();
     loadTags();
-  }, []);
+    loadCategories();
+  }, [refreshTrigger]);
 
   // 计算所有选中成员的统计数据
   const calculateSelectedMembersStats = () => {
@@ -243,7 +264,6 @@ const HomeList = () => {
   const renderRightActions = (transaction: Transaction) => {
     return (
       <View style={styles.actionButtons}>
-
         <TouchableOpacity
           style={[styles.actionButton, styles.editButton]}
           onPress={() => {
@@ -334,73 +354,91 @@ const HomeList = () => {
 
   // 渲染标签
   const renderTags = (transaction: Transaction) => {
-    const transactionTags = getTransactionTags(transaction);
-    if (transactionTags.length === 0) return null;
+    if (!transaction.tags || transaction.tags.length === 0) return null;
 
-    let displayTags = transactionTags;
-    let hasMore = false;
+    const tagData = transaction.tags.map(tagId => {
+      const tag = tags.find(t => t.id === tagId);
+      return tag || { id: tagId, name: `Tag ${tagId}`, color: '#ccc' };
+    });
 
     // 如果标签总字符数超过5或标签数超过2，只显示前面的标签
-    const totalChars = transactionTags.reduce((sum, tag) => sum + tag.name.length, 0);
-    if (totalChars > 5 || transactionTags.length > 2) {
-      displayTags = transactionTags.slice(0, 2);
-      hasMore = true;
-    }
+    const displayTags = tagData.slice(0, 2);
+    const hasMore = tagData.length > 2;
 
     return (
       <View style={styles.tagContainer}>
         {displayTags.map(tag => (
-          <View
-            key={tag.id}
-            style={[styles.tag, { borderColor: tag.color }]}
-          >
-            <Text style={[styles.tagText, { color: tag.color }]}>
-              {tag.name}
-            </Text>
+          <View key={tag.id} style={[styles.tag, { borderColor: tag.color }]}>
+            <Text style={[styles.tagText, { color: tag.color }]}>{tag.name}</Text>
           </View>
         ))}
         {hasMore && (
-          <Text style={styles.moreTagsText}>...</Text>
+          <Text style={styles.moreTagsText}>+{tagData.length - 2}</Text>
         )}
       </View>
     );
   };
 
-  const renderTransactionItem = (transaction: Transaction) => (
-    <View style={styles.transactionItem}>
-      <View style={styles.transactionLeft}>
-        <View style={[
-          styles.transactionIcon,
-          { backgroundColor: transaction.type === 'income' ? '#FFF8E7' : '#FFF1F1' }
-        ]}>
-          <Text style={styles.iconText}>{transaction.categoryIcon}</Text>
-        </View>
-        <View style={styles.transactionInfo}>
-          <View style={styles.transactionTitleRow}>
-            <Text style={styles.transactionType}>{transaction.category}</Text>
-            <View style={styles.transactionTags}>
-              <Text style={styles.memberTag}>{members.find(m => m.id === transaction.member_id)?.name}</Text>
-              {!!transaction.refunded && (
-                <View style={styles.refundedBadge}>
-                  <Text style={styles.refundedText}>已退款</Text>
+  const renderTransactionItem = (transaction: Transaction) => {
+    // 获取最新的分类信息
+    const categoryInfo = getCategoryInfo(transaction.category, transaction.type);
+
+    return (
+      <Swipeable
+        key={transaction.id}
+        ref={ref => {
+          if (ref) {
+            swipeableRefs.current[transaction.id] = ref;
+          }
+        }}
+        renderRightActions={() => renderRightActions(transaction)}
+        onSwipeableOpen={() => handleSwipeOpen(transaction.id)}
+      >
+        <TouchableOpacity
+          style={styles.transactionItem}
+          onPress={() => handleEdit(transaction)}
+        >
+          <View style={styles.transactionLeft}>
+            <View style={[
+              styles.transactionIcon,
+              { backgroundColor: transaction.type === 'income' ? '#FFF8E7' : '#FFF1F1' }
+            ]}>
+              <Text style={styles.iconText}>
+                {categoryInfo?.icon || transaction.categoryIcon || '📊'}
+              </Text>
+            </View>
+            <View style={styles.transactionInfo}>
+              <View style={styles.transactionTitleRow}>
+                <Text style={styles.transactionType}>
+                  {categoryInfo?.name || transaction.category}
+                </Text>
+                <View style={styles.transactionTags}>
+                  <Text style={styles.memberTag}>
+                    {members.find(m => m.id === transaction.member_id)?.name}
+                  </Text>
+                  {!!transaction.refunded && (
+                    <View style={styles.refundedBadge}>
+                      <Text style={styles.refundedText}>{i18n.t('common.refunded')}</Text>
+                    </View>
+                  )}
                 </View>
+              </View>
+              {transaction.note && (
+                <Text style={styles.transactionNote}>{transaction.note}</Text>
               )}
+              {transaction.type === 'expense' && renderTags(transaction)}
             </View>
           </View>
-          {transaction.note && (
-            <Text style={styles.transactionNote}>{transaction.note}</Text>
-          )}
-          {transaction.type === 'expense' && renderTags(transaction)}
-        </View>
-      </View>
-      <Text style={[
-        styles.transactionAmount,
-        { color: transaction.type === 'income' ? '#FF9A2E' : '#dc4446' }
-      ]}>
-        {transaction.type === 'income' ? '+' : '-'}{currency}{Math.abs(transaction.amount).toFixed(2)}
-      </Text>
-    </View>
-  );
+          <Text style={[
+            styles.transactionAmount,
+            { color: transaction.type === 'income' ? '#FF9A2E' : '#dc4446' }
+          ]}>
+            {transaction.type === 'income' ? '+' : '-'}{currency}{Math.abs(transaction.amount).toFixed(2)}
+          </Text>
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  };
 
   const renderMemberSelectorModal = () => (
     <Modal
@@ -594,6 +632,31 @@ const HomeList = () => {
     </View>
   );
 
+  // 添加获取分类信息的辅助函数
+  const getCategoryInfo = (categoryName: string, type: 'income' | 'expense') => {
+    // 从缓存中获取分类信息
+    const categoryList = type === 'income' ? incomeCategories : expenseCategories;
+    return categoryList.find(c => c.name === categoryName);
+  };
+
+  // 添加处理左滑打开的函数
+  const handleSwipeOpen = (id: number) => {
+    // 关闭其他打开的左滑菜单
+    Object.entries(swipeableRefs.current).forEach(([key, ref]) => {
+      if (Number(key) !== id) {
+        ref?.close();
+      }
+    });
+  };
+
+  // 添加处理编辑的函数
+  const handleEdit = (transaction: Transaction) => {
+    router.push({
+      pathname: '/screens/add',
+      params: { id: transaction.id.toString() }
+    });
+  };
+
   return (
     <View style={styles.container} onTouchStart={closeAllSwipeables}>
       {/* {renderButtonGroup()} */}
@@ -688,21 +751,7 @@ const HomeList = () => {
                   </View>
                 </View>
                 {items.map(transaction => (
-                  <Swipeable
-                    key={transaction.id}
-                    ref={ref => swipeableRefs.current[transaction.id] = ref}
-                    renderRightActions={() => renderRightActions(transaction)}
-                    onSwipeableWillOpen={() => {
-                      // 关闭其他打开的左滑菜单
-                      Object.entries(swipeableRefs.current).forEach(([id, ref]) => {
-                        if (Number(id) !== transaction.id) {
-                          ref?.close();
-                        }
-                      });
-                    }}
-                  >
-                    {renderTransactionItem(transaction)}
-                  </Swipeable>
+                  renderTransactionItem(transaction)
                 ))}
               </View>
             ))}
@@ -854,6 +903,7 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontWeight: '600',
     fontSize: 17,
+    color: '#333',
   },
   navbar: {
     flexDirection: 'row',
@@ -1215,6 +1265,25 @@ const styles = StyleSheet.create({
   loadMoreText: {
     color: '#666',
     fontSize: 14,
+  },
+  categoryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryIconText: {
+    fontSize: 20,
+  },
+  transactionCategory: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  amountText: {
+    fontWeight: '600',
+    fontSize: 17,
   },
 });
 

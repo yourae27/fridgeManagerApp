@@ -92,7 +92,13 @@
         "selectIcon": "选择图标",
         "noCategories": "暂无分类",
         "income": "收入分类",
-        "expense": "支出分类"
+        "expense": "支出分类",
+        "categoryNameRequired": "请输入分类名称",
+        "addCategoryFailed": "添加分类失败",
+        "updateCategoryFailed": "更新分类失败",
+        "deleteCategoryFailed": "删除分类失败",
+        "confirmDelete": "确认删除",
+        "confirmDeleteMessage": "确定要删除这个分类吗？"
     },
     "profile": {
         "profile": "我的",

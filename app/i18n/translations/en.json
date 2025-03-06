@@ -92,7 +92,13 @@
         "selectIcon": "Select Icon",
         "noCategories": "No categories yet",
         "income": "Income Categories",
-        "expense": "Expense Categories"
+        "expense": "Expense Categories",
+        "categoryNameRequired": "Please input category name",
+        "addCategoryFailed": "Add category failed",
+        "updateCategoryFailed": "Update category failed",
+        "deleteCategoryFailed": "Delete category failed",
+        "confirmDelete": "Confirm Delete",
+        "confirmDeleteMessage": "Are you sure you want to delete this category?"
     },
     "profile": {
         "profile": "Profile",
