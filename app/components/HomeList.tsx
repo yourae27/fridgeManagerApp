@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Modal, TextInput } from 'react-native';
 import { getTransactions, deleteTransaction, updateTransaction, getMembers, getTags, getCategories, getTotalBudget } from '../constants/Storage';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useTransactionContext } from '../context/TransactionContext';
@@ -146,6 +146,20 @@ const HomeList = () => {
     }
   };
 
+  // 添加 useFocusEffect 钩子，在页面获得焦点时刷新数据
+  useFocusEffect(
+    useCallback(() => {
+      // 当页面获得焦点时（例如从预算页面返回时）刷新数据
+      loadMembers();
+      loadTags();
+      loadCategories();
+      return () => {
+        // 可选的清理函数
+      };
+    }, [])
+  );
+
+  // 保留现有的 useEffect 钩子
   useEffect(() => {
     loadMembers();
     loadTags();
@@ -419,7 +433,7 @@ const HomeList = () => {
                   {categoryInfo?.name || transaction.category}
                 </Text>
                 <View style={styles.transactionTags}>
-                  {memberName && (
+                  {!!memberName && (
                     <Text style={styles.memberTag}>{memberName}</Text>
                   )}
                   {!!transaction.refunded && (
@@ -465,7 +479,7 @@ const HomeList = () => {
           <TouchableOpacity
             style={[
               styles.memberSelectorItem,
-              selectedMembers.length === 0 && styles.selectedMemberItem
+              (selectedMembers.length === 0) && styles.selectedMemberItem
             ]}
             onPress={() => {
               setSelectedMembers([]);
@@ -474,7 +488,7 @@ const HomeList = () => {
           >
             <Text style={[
               styles.memberSelectorItemText,
-              selectedMembers.length === 0 && styles.selectedMemberItemText
+              (selectedMembers.length === 0) && styles.selectedMemberItemText
             ]}>{i18n.t('common.allMembers')}</Text>
           </TouchableOpacity>
           {members.map(member => (
@@ -482,7 +496,7 @@ const HomeList = () => {
               key={member.id}
               style={[
                 styles.memberSelectorItem,
-                selectedMembers.length === 1 && selectedMembers[0] === member.id && styles.selectedMemberItem
+                (selectedMembers.length === 1 && selectedMembers[0] === member.id) && styles.selectedMemberItem
               ]}
               onPress={() => {
                 // 单选逻辑
@@ -497,7 +511,7 @@ const HomeList = () => {
               <View style={styles.memberSelectorItemContent}>
                 <Text style={[
                   styles.memberSelectorItemText,
-                  selectedMembers.length === 1 && selectedMembers[0] === member.id && styles.selectedMemberItemText
+                  (selectedMembers.length === 1 && selectedMembers[0] === member.id) && styles.selectedMemberItemText
                 ]}>{member.name}</Text>
                 {!!member.budget && (
                   <Text style={styles.memberBudgetText}>
@@ -505,7 +519,7 @@ const HomeList = () => {
                   </Text>
                 )}
               </View>
-              {selectedMembers.length === 1 && selectedMembers[0] === member.id && (
+              {(selectedMembers.length === 1 && selectedMembers[0] === member.id) && (
                 <Ionicons name="checkmark" size={20} color="#dc4446" />
               )}
             </TouchableOpacity>
@@ -517,6 +531,7 @@ const HomeList = () => {
 
   const renderBudgetSection = () => {
     const stats = calculateSelectedMembersStats();
+    // if (!stats.budget && selectedMembers.length > 0) return null;
 
     const progress = stats.budget ? (stats.expenses / stats.budget) * 100 : 0;
     const displayText = selectedMembers.length === 0
