@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getMembers, addMember, updateMember, deleteMember } from '../constants/Storage';
+import { getMembers, addMember, updateMember, deleteMember, getTotalBudget, updateTotalBudget } from '../constants/Storage';
 import i18n from '../i18n';
 import EmptyState from '../components/EmptyState';
 import { useSettings } from '../context/SettingsContext';
@@ -19,6 +19,9 @@ const Budget = () => {
     const [newMemberBudget, setNewMemberBudget] = useState('');
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const { currency } = useSettings();
+    const [totalBudget, setTotalBudget] = useState<string>('');
+    const [showTotalBudgetForm, setShowTotalBudgetForm] = useState(false);
+
     const loadMembers = async () => {
         try {
             const data = await getMembers();
@@ -28,8 +31,18 @@ const Budget = () => {
         }
     };
 
+    const loadTotalBudget = async () => {
+        try {
+            const budget = await getTotalBudget();
+            setTotalBudget(budget ? budget.toString() : '');
+        } catch (error) {
+            console.error('Failed to load total budget:', error);
+        }
+    };
+
     useEffect(() => {
         loadMembers();
+        loadTotalBudget();
     }, []);
 
     const handleAddMember = async () => {
@@ -104,6 +117,68 @@ const Budget = () => {
                     },
                 },
             ]
+        );
+    };
+
+    const handleUpdateTotalBudget = async () => {
+        if (!totalBudget.trim()) {
+            setTotalBudget('');
+            await updateTotalBudget(0);
+            setShowTotalBudgetForm(false);
+            return;
+        }
+
+        try {
+            await updateTotalBudget(parseFloat(totalBudget));
+            setShowTotalBudgetForm(false);
+            loadTotalBudget();
+        } catch (error) {
+            console.error('Failed to update total budget:', error);
+            Alert.alert(i18n.t('common.error'), i18n.t('common.updateBudgetFailed'));
+        }
+    };
+
+    const renderTotalBudget = () => {
+        return (
+            <View style={styles.totalBudgetSection}>
+                <Text style={styles.sectionTitle}>{i18n.t('budget.totalBudget')}</Text>
+
+                {!showTotalBudgetForm ? (
+                    <TouchableOpacity
+                        style={styles.budgetDisplay}
+                        onPress={() => setShowTotalBudgetForm(true)}
+                    >
+                        <Text style={styles.budgetText}>
+                            {totalBudget ? `${currency}${totalBudget}` : i18n.t('common.noBudget')}
+                        </Text>
+                        <Ionicons name="pencil-outline" size={20} color="#666" />
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.budgetForm}>
+                        <TextInput
+                            style={styles.input}
+                            value={totalBudget}
+                            onChangeText={setTotalBudget}
+                            placeholder={i18n.t('common.budgetAmount')}
+                            keyboardType="decimal-pad"
+                        />
+                        <View style={styles.formButtons}>
+                            <TouchableOpacity
+                                style={[styles.formButton, styles.submitButton]}
+                                onPress={handleUpdateTotalBudget}
+                            >
+                                <Text style={styles.formButtonText}>{i18n.t('common.save')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.formButton, styles.cancelButton]}
+                                onPress={() => setShowTotalBudgetForm(false)}
+                            >
+                                <Text style={styles.formButtonText}>{i18n.t('common.cancel')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+            </View>
         );
     };
 
@@ -216,6 +291,7 @@ const Budget = () => {
             )}
 
             <View style={styles.memberList}>
+                {renderTotalBudget()}
                 {members.length === 0 && (
                     <EmptyState
                         icon="people-outline"
@@ -225,6 +301,8 @@ const Budget = () => {
                 )}
                 {members.map(renderMemberItem)}
             </View>
+
+
         </ScrollView>
     );
 };
@@ -338,6 +416,29 @@ const styles = StyleSheet.create({
     editButtonText: {
         color: 'white',
         fontSize: 14,
+    },
+    totalBudgetSection: {
+        marginTop: 20,
+        padding: 16,
+        backgroundColor: 'white',
+        borderRadius: 12,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '500',
+        marginBottom: 12,
+    },
+    budgetDisplay: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    budgetText: {
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    budgetForm: {
+        marginTop: 12,
     },
 });
 

@@ -67,7 +67,9 @@
         "clickAddButtonToAddTag": "Click the plus button in the top right corner to add tag",
         "addNewTag": "Add New Tag",
         "tagName": "Tag name",
-        "emailUnavailable": "Email function is not available"
+        "emailUnavailable": "Email function is not available",
+        "noMember": "No Member",
+        "updateBudgetFailed": "Update budget failed"
     },
     "home": {
         "title": "Home",
@@ -165,5 +167,11 @@
         "error": "Error",
         "currencyUpdated": "Currency has been updated",
         "updateFailed": "Update failed, please try again"
+    },
+    "budget": {
+        "title": "Budget",
+        "monthly": "Monthly Budget",
+        "daily": "Daily Budget",
+        "totalBudget": "Total Budget"
     }
 }

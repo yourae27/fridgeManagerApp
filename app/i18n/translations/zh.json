@@ -67,7 +67,9 @@
         "clickAddButtonToAddTag": "点击右上角的加号按钮添加标签吧",
         "addNewTag": "添加新标签",
         "tagName": "标签名称",
-        "emailUnavailable": "邮件功能不可用"
+        "emailUnavailable": "邮件功能不可用",
+        "noMember": "不指定成员",
+        "updateBudgetFailed": "更新预算失败"
     },
     "home": {
         "title": "首页",
@@ -165,5 +167,11 @@
         "error": "错误",
         "currencyUpdated": "货币单位已更新",
         "updateFailed": "更新失败，请重试"
+    },
+    "budget": {
+        "title": "预算",
+        "monthly": "月度预算",
+        "daily": "日均预算",
+        "totalBudget": "总预算"
     }
 }

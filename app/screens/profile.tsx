@@ -336,20 +336,6 @@ const Profile = () => {
             route: '/screens/budget',
         },
         {
-            id: 'export',
-            title: i18n.t('profile.exportExcel'),
-            icon: 'document-outline',
-            color: '#2196F3',
-            onPress: () => setShowExportModal(true),
-        },
-        {
-            id: 'import',
-            title: i18n.t('profile.importExcel'),
-            icon: 'cloud-upload-outline',
-            color: '#FF5722',
-            onPress: () => setShowImportModal(true),
-        },
-        {
             id: 'categories',
             title: i18n.t('profile.manageCategories'),
             icon: 'list-outline',
@@ -363,6 +349,20 @@ const Profile = () => {
             color: '#9C27B0',
             onPress: handleTagsPress,
             isPremium: true,
+        },
+        {
+            id: 'export',
+            title: i18n.t('profile.exportExcel'),
+            icon: 'document-outline',
+            color: '#2196F3',
+            onPress: () => setShowExportModal(true),
+        },
+        {
+            id: 'import',
+            title: i18n.t('profile.importExcel'),
+            icon: 'cloud-upload-outline',
+            color: '#FF5722',
+            onPress: () => setShowImportModal(true),
         },
         {
             id: 'settings',

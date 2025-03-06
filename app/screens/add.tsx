@@ -398,26 +398,40 @@ const Add = () => {
       />
 
       {/* 成员选择 */}
-      {members.length > 0 && (<View>
-        <Text style={styles.sectionTitle}>{i18n.t('common.member')}</Text>
-        <View style={styles.memberGrid}>
-          {members.map((member: Member) => (
-            <TouchableOpacity
-              key={member.id}
-              style={[
-                styles.memberItem,
-                currentState.member_id === member.id && styles.selectedMember
-              ]}
-              onPress={() => updateCurrentState('member_id', member.id)}
-            >
-              <Text style={[
-                styles.memberText,
-                currentState.member_id === member.id && styles.selectedMemberText
-              ]}>{member.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View></View>)
-      }
+      <View style={styles.memberGrid}>
+        <TouchableOpacity
+          style={[
+            styles.memberItem,
+            currentState.member_id === null && styles.selectedMember
+          ]}
+          onPress={() => updateCurrentState('member_id', null)}
+        >
+          <Text style={[
+            styles.memberText,
+            currentState.member_id === null && styles.selectedMemberText
+          ]}>
+            {i18n.t('common.noMember')}
+          </Text>
+        </TouchableOpacity>
+
+        {members.map(member => (
+          <TouchableOpacity
+            key={member.id}
+            style={[
+              styles.memberItem,
+              currentState.member_id === member.id && styles.selectedMember
+            ]}
+            onPress={() => updateCurrentState('member_id', member.id)}
+          >
+            <Text style={[
+              styles.memberText,
+              currentState.member_id === member.id && styles.selectedMemberText
+            ]}>
+              {member.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {/* 退款状态 */}
       {isEditing && activeTab === 'expense' && (

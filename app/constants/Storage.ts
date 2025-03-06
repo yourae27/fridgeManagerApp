@@ -141,7 +141,7 @@ export const addTransaction = async (data: {
                 data.categoryIcon,
                 data.note || '',
                 data.date,
-                data.member_id || 1,
+                data.member_id || null,
                 data.refunded || false
             ]
         );
@@ -788,6 +788,52 @@ export const updateCategory = async (id: number, data: {
         `, [...values, id]);
     } catch (error) {
         console.error('Failed to update category:', error);
+        throw error;
+    }
+};
+
+// 添加获取总预算的函数
+export const getTotalBudget = async (): Promise<number | null> => {
+    const db = await getDB();
+    try {
+        // 确保设置表存在
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+        `);
+
+        const result = await db.getAllAsync<{ value: string }>(
+            'SELECT value FROM settings WHERE key = ?;',
+            ['total_budget']
+        );
+
+        return result.length > 0 ? parseFloat(result[0].value) : null;
+    } catch (error) {
+        console.error('Failed to get total budget:', error);
+        return null;
+    }
+};
+
+// 添加更新总预算的函数
+export const updateTotalBudget = async (budget: number): Promise<void> => {
+    const db = await getDB();
+    try {
+        // 确保设置表存在
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+        `);
+
+        await db.runAsync(
+            'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);',
+            ['total_budget', budget.toString()]
+        );
+    } catch (error) {
+        console.error('Failed to update total budget:', error);
         throw error;
     }
 };
