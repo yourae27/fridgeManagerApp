@@ -141,7 +141,7 @@ export const addTransaction = async (data: {
                 data.categoryIcon,
                 data.note || '',
                 data.date,
-                data.member_id || null,
+                data.member_id || 0,
                 data.refunded || false
             ]
         );
@@ -354,12 +354,15 @@ export const updateTransaction = async (id: number, data: {
     categoryIcon?: string;
     note?: string;
     date?: string;
-    member_id?: number;
+    member_id?: number | null;
     refunded?: boolean;
     tags?: number[];
 }) => {
     const db = await getDB();
     await db.withTransactionAsync(async () => {
+        // 处理 member_id 为 null 的情况，将其转换为 0
+        const memberIdValue = data.member_id === null ? 0 : (data.member_id || 0);
+
         // 更新主表数据
         const updates = Object.entries(data)
             .filter(([key, value]) => value !== undefined && key !== 'tags')

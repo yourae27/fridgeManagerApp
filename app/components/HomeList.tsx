@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Modal, TextInput } from 'react-native';
-import { getTransactions, deleteTransaction, updateTransaction, getMembers, getTags, getCategories } from '../constants/Storage';
+import { getTransactions, deleteTransaction, updateTransaction, getMembers, getTags, getCategories, getTotalBudget } from '../constants/Storage';
 import { router } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,6 +74,7 @@ const HomeList = () => {
   const { currency } = useSettings();
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
+  const [totalBudget, setTotalBudget] = useState<number | null>(null);
 
   // 计算每日总计
   const calculateDailyTotal = (transactions: Transaction[]): DailyTotal => {
@@ -383,6 +384,11 @@ const HomeList = () => {
     // 获取最新的分类信息
     const categoryInfo = getCategoryInfo(transaction.category, transaction.type);
 
+    // 获取成员名称，如果 member_id 为 0，则不显示成员
+    const memberName = transaction.member_id === 0
+      ? null
+      : members.find(m => m.id === transaction.member_id)?.name;
+
     return (
       <Swipeable
         key={transaction.id}
@@ -413,9 +419,9 @@ const HomeList = () => {
                   {categoryInfo?.name || transaction.category}
                 </Text>
                 <View style={styles.transactionTags}>
-                  <Text style={styles.memberTag}>
-                    {members.find(m => m.id === transaction.member_id)?.name}
-                  </Text>
+                  {memberName && (
+                    <Text style={styles.memberTag}>{memberName}</Text>
+                  )}
                   {!!transaction.refunded && (
                     <View style={styles.refundedBadge}>
                       <Text style={styles.refundedText}>{i18n.t('common.refunded')}</Text>
@@ -476,21 +482,22 @@ const HomeList = () => {
               key={member.id}
               style={[
                 styles.memberSelectorItem,
-                selectedMembers.includes(member.id) && styles.selectedMemberItem
+                selectedMembers.length === 1 && selectedMembers[0] === member.id && styles.selectedMemberItem
               ]}
               onPress={() => {
-                setSelectedMembers(prev => {
-                  const newSelection = prev.includes(member.id)
-                    ? prev.filter(m => m !== member.id)
-                    : [...prev, member.id];
-                  return newSelection;
-                });
+                // 单选逻辑
+                if (selectedMembers.length === 1 && selectedMembers[0] === member.id) {
+                  setSelectedMembers([]);
+                } else {
+                  setSelectedMembers([member.id]);
+                }
+                setShowMemberSelector(false);
               }}
             >
               <View style={styles.memberSelectorItemContent}>
                 <Text style={[
                   styles.memberSelectorItemText,
-                  selectedMembers.includes(member.id) && styles.selectedMemberItemText
+                  selectedMembers.length === 1 && selectedMembers[0] === member.id && styles.selectedMemberItemText
                 ]}>{member.name}</Text>
                 {member.budget && (
                   <Text style={styles.memberBudgetText}>
@@ -498,7 +505,7 @@ const HomeList = () => {
                   </Text>
                 )}
               </View>
-              {selectedMembers.includes(member.id) && (
+              {selectedMembers.length === 1 && selectedMembers[0] === member.id && (
                 <Ionicons name="checkmark" size={20} color="#dc4446" />
               )}
             </TouchableOpacity>
@@ -510,14 +517,17 @@ const HomeList = () => {
 
   const renderBudgetSection = () => {
     const stats = calculateSelectedMembersStats();
-    if (!stats.budget) return null;
+    // if (!stats.budget && selectedMembers.length > 0) return null;
 
-    const progress = (stats.expenses / stats.budget) * 100;
+    const progress = stats.budget ? (stats.expenses / stats.budget) * 100 : 0;
     const displayText = selectedMembers.length === 0
       ? i18n.t('common.allMembers')
-      : selectedMembers.length === 1
-        ? selectedMembers[0]
-        : `${selectedMembers.length} ${i18n.t('common.members')}`;
+      : members.find(m => m.id === selectedMembers[0])?.name || '';
+
+    // 使用总预算或成员预算
+    const budgetValue = selectedMembers.length === 0 && totalBudget !== null
+      ? totalBudget
+      : stats.budget || 0;
 
     return (
       <View style={styles.budgetSection}>
@@ -532,7 +542,7 @@ const HomeList = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.budgetCard}>
-          <Text style={styles.totalBudget}>{currency}{stats.budget.toFixed(2)}</Text>
+          <Text style={styles.totalBudget}>{currency}{budgetValue.toFixed(2)}</Text>
           <View style={styles.budgetProgressBar}>
             <View style={[styles.budgetProgress, { width: `${Math.min(progress, 100)}%` }]} />
           </View>
@@ -542,9 +552,9 @@ const HomeList = () => {
             </Text>
             <Text style={[
               styles.budgetDetailText,
-              stats.remaining && stats.remaining < 0 ? styles.overBudget : null
+              budgetValue && stats.expenses > budgetValue ? styles.overBudget : null
             ]}>
-              {i18n.t('common.remaining')}: {currency}{stats.remaining?.toFixed(2)}
+              {i18n.t('common.remaining')}: {currency}{(budgetValue - stats.expenses).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -656,6 +666,19 @@ const HomeList = () => {
       params: { id: transaction.id.toString() }
     });
   };
+
+  useEffect(() => {
+    const loadTotalBudget = async () => {
+      try {
+        const budget = await getTotalBudget();
+        setTotalBudget(budget);
+      } catch (error) {
+        console.error('Failed to load total budget:', error);
+      }
+    };
+
+    loadTotalBudget();
+  }, [refreshTrigger]);
 
   return (
     <View style={styles.container} onTouchStart={closeAllSwipeables}>

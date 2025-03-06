@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Platform, Button } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Platform, Button, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useRootNavigationState } from 'expo-router';
 import { addFavorite, addTransaction, getFavorites, deleteFavorite, updateTransaction, getCategories, getMembers, getTags, updateFavoriteOrder } from '../constants/Storage';
@@ -60,11 +60,17 @@ const Add = () => {
   const setCurrentState = activeTab === 'income' ? setIncomeState : setExpenseState;
 
   // 更新状态的辅助函数
-  const updateCurrentState = (field: string, value: any) => {
-    setCurrentState(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const updateCurrentState = (key: string, value: any) => {
+    if (key === 'member_id') {
+      // 如果点击当前已选中的成员，则取消选择（设置为0）
+      if (currentState.member_id === value) {
+        setCurrentState(prev => ({ ...prev, [key]: 0 }));
+      } else {
+        setCurrentState(prev => ({ ...prev, [key]: value }));
+      }
+    } else {
+      setCurrentState(prev => ({ ...prev, [key]: value }));
+    }
   };
 
   // 收藏记录状态
@@ -237,10 +243,12 @@ const Add = () => {
           tags: selectedTags,
         });
       }
+
       triggerRefresh();
       router.back();
     } catch (error) {
       console.error('Failed to save transaction:', error);
+      Alert.alert(i18n.t('common.error'), i18n.t('add.saveFailed'));
     }
   };
 
@@ -398,40 +406,7 @@ const Add = () => {
       />
 
       {/* 成员选择 */}
-      <View style={styles.memberGrid}>
-        <TouchableOpacity
-          style={[
-            styles.memberItem,
-            currentState.member_id === null && styles.selectedMember
-          ]}
-          onPress={() => updateCurrentState('member_id', null)}
-        >
-          <Text style={[
-            styles.memberText,
-            currentState.member_id === null && styles.selectedMemberText
-          ]}>
-            {i18n.t('common.noMember')}
-          </Text>
-        </TouchableOpacity>
-
-        {members.map(member => (
-          <TouchableOpacity
-            key={member.id}
-            style={[
-              styles.memberItem,
-              currentState.member_id === member.id && styles.selectedMember
-            ]}
-            onPress={() => updateCurrentState('member_id', member.id)}
-          >
-            <Text style={[
-              styles.memberText,
-              currentState.member_id === member.id && styles.selectedMemberText
-            ]}>
-              {member.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {renderMemberSection()}
 
       {/* 退款状态 */}
       {isEditing && activeTab === 'expense' && (
@@ -576,6 +551,36 @@ const Add = () => {
   useEffect(() => {
     loadTags();
   }, []);
+
+  // 修改成员选择部分的渲染
+  const renderMemberSection = () => {
+    if (members.length === 0) return null;
+
+    return (
+      <>
+        <Text style={styles.sectionTitle}>{i18n.t('common.member')}</Text>
+        <View style={styles.memberGrid}>
+          {members.map(member => (
+            <TouchableOpacity
+              key={member.id}
+              style={[
+                styles.memberItem,
+                currentState.member_id === member.id && styles.selectedMember
+              ]}
+              onPress={() => updateCurrentState('member_id', member.id)}
+            >
+              <Text style={[
+                styles.memberText,
+                currentState.member_id === member.id && styles.selectedMemberText
+              ]}>
+                {member.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </>
+    );
+  };
 
   return (
     <View style={styles.container} onTouchStart={() => {
