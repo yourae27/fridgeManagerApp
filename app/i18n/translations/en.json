@@ -98,7 +98,10 @@
         "updateCategoryFailed": "Update category failed",
         "deleteCategoryFailed": "Delete category failed",
         "confirmDelete": "Confirm Delete",
-        "confirmDeleteMessage": "Are you sure you want to delete this category?"
+        "confirmDeleteMessage": "Are you sure you want to delete this category?",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "editCategory": "Edit Category"
     },
     "profile": {
         "profile": "Profile",
