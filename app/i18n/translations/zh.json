@@ -69,7 +69,8 @@
         "tagName": "标签名称",
         "emailUnavailable": "邮件功能不可用",
         "noMember": "不指定成员",
-        "updateBudgetFailed": "更新预算失败"
+        "updateBudgetFailed": "更新预算失败",
+        "noBudgetPrompt": "在个人页面设置预算以跟踪您的支出"
     },
     "home": {
         "title": "首页",

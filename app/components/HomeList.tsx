@@ -499,7 +499,7 @@ const HomeList = () => {
                   styles.memberSelectorItemText,
                   selectedMembers.length === 1 && selectedMembers[0] === member.id && styles.selectedMemberItemText
                 ]}>{member.name}</Text>
-                {member.budget && (
+                {!!member.budget && (
                   <Text style={styles.memberBudgetText}>
                     {i18n.t('common.budget')}: {currency}{member.budget.toFixed(2)}
                   </Text>
@@ -517,7 +517,6 @@ const HomeList = () => {
 
   const renderBudgetSection = () => {
     const stats = calculateSelectedMembersStats();
-    // if (!stats.budget && selectedMembers.length > 0) return null;
 
     const progress = stats.budget ? (stats.expenses / stats.budget) * 100 : 0;
     const displayText = selectedMembers.length === 0
@@ -528,6 +527,10 @@ const HomeList = () => {
     const budgetValue = selectedMembers.length === 0 && totalBudget !== null
       ? totalBudget
       : stats.budget || 0;
+
+    // 检查是否需要显示预算设置提示
+    const showBudgetPrompt = (selectedMembers.length === 0 && (totalBudget === null || totalBudget === 0)) ||
+      (selectedMembers.length > 0 && !stats.budget);
 
     return (
       <View style={styles.budgetSection}>
@@ -541,23 +544,41 @@ const HomeList = () => {
             <Ionicons name="chevron-down" size={16} color="#333" />
           </TouchableOpacity>
         </View>
-        <View style={styles.budgetCard}>
-          <Text style={styles.totalBudget}>{currency}{budgetValue.toFixed(2)}</Text>
-          <View style={styles.budgetProgressBar}>
-            <View style={[styles.budgetProgress, { width: `${Math.min(progress, 100)}%` }]} />
+
+        {showBudgetPrompt ? (
+          // 显示预算设置提示
+          <TouchableOpacity
+            style={styles.budgetPromptCard}
+            onPress={() => router.push('/screens/budget')}
+          >
+            <View style={styles.budgetPromptContent}>
+              <Ionicons name="alert-circle-outline" size={24} color="#dc4446" />
+              <Text style={styles.budgetPromptText}>
+                {i18n.t('common.noBudgetPrompt')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+        ) : (
+          // 显示正常的预算卡片
+          <View style={styles.budgetCard}>
+            <Text style={styles.totalBudget}>{currency}{budgetValue.toFixed(2)}</Text>
+            <View style={styles.budgetProgressBar}>
+              <View style={[styles.budgetProgress, { width: `${Math.min(progress, 100)}%` }]} />
+            </View>
+            <View style={styles.budgetDetails}>
+              <Text style={styles.budgetDetailText}>
+                {i18n.t('common.used')}: {currency}{stats.expenses.toFixed(2)}
+              </Text>
+              <Text style={[
+                styles.budgetDetailText,
+                budgetValue && stats.expenses > budgetValue ? styles.overBudget : null
+              ]}>
+                {i18n.t('common.remaining')}: {currency}{(budgetValue - stats.expenses).toFixed(2)}
+              </Text>
+            </View>
           </View>
-          <View style={styles.budgetDetails}>
-            <Text style={styles.budgetDetailText}>
-              {i18n.t('common.used')}: {currency}{stats.expenses.toFixed(2)}
-            </Text>
-            <Text style={[
-              styles.budgetDetailText,
-              budgetValue && stats.expenses > budgetValue ? styles.overBudget : null
-            ]}>
-              {i18n.t('common.remaining')}: {currency}{(budgetValue - stats.expenses).toFixed(2)}
-            </Text>
-          </View>
-        </View>
+        )}
       </View>
     );
   };
@@ -1307,6 +1328,31 @@ const styles = StyleSheet.create({
   amountText: {
     fontWeight: '600',
     fontSize: 17,
+  },
+  budgetPromptCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  budgetPromptContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  budgetPromptText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
   },
 });
 

@@ -69,7 +69,8 @@
         "tagName": "Tag name",
         "emailUnavailable": "Email function is not available",
         "noMember": "No Member",
-        "updateBudgetFailed": "Update budget failed"
+        "updateBudgetFailed": "Update budget failed",
+        "noBudgetPrompt": "Set up your budget in the profile page to track your spending"
     },
     "home": {
         "title": "Home",
