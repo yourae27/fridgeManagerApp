@@ -20,6 +20,7 @@ export default function RootLayout() {
     init();
   }, []);
 
+  const headerTintColor = 'gray';
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SettingsProvider>
@@ -30,7 +31,7 @@ export default function RootLayout() {
                 headerStyle: {
                   backgroundColor: 'white',
                 },
-                headerTintColor: '#fff',
+                headerTintColor: headerTintColor,
                 headerTitleStyle: {
                   fontWeight: 'bold',
                 },
@@ -41,28 +42,28 @@ export default function RootLayout() {
                 name="screens/categories"
                 options={{
                   title: i18n.t('categories.title'),
-                  headerTintColor: '#333',
+                  headerTintColor: headerTintColor,
                 }}
               />
               <Stack.Screen
                 name="screens/profile"
                 options={{
                   title: i18n.t('profile.profile'),
-                  headerTintColor: '#333',
+                  headerTintColor: headerTintColor,
                 }}
               />
               <Stack.Screen
                 name="screens/budget"
                 options={{
                   title: i18n.t('profile.memberBudget'),
-                  headerTintColor: '#333',
+                  headerTintColor: headerTintColor,
                 }}
               />
               <Stack.Screen
                 name="screens/settings"
                 options={{
                   title: i18n.t('settings.title'),
-                  headerTintColor: '#333',
+                  headerTintColor: headerTintColor,
                 }}
               />
             </Stack>
