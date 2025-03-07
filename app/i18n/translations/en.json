@@ -28,6 +28,8 @@
         "monthly": "Monthly",
         "tag": "Tag",
         "noData": "No data",
+        "confirmDeleteMember": "Confirm Delete Member",
+        "confirmDeleteTag": "Confirm Delete Tag",
         "weekdays": {
             "mon": "Mon",
             "tue": "Tue",
@@ -70,7 +72,8 @@
         "emailUnavailable": "Email function is not available",
         "noMember": "No Member",
         "updateBudgetFailed": "Update budget failed",
-        "noBudgetPrompt": "Set up your budget in the profile page to track your spending"
+        "noBudgetPrompt": "Set up your budget in the profile page to track your spending",
+        "confirmDeleteTagPrompt": "Are you sure you want to delete this tag?"
     },
     "home": {
         "title": "Home",

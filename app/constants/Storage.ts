@@ -148,11 +148,12 @@ export const addTransaction = async (data: {
 
         if (data.tags?.length) {
             const transactionId = result.lastInsertRowId;
-            const tagValues = data.tags.map(tagId => `(${transactionId}, ${tagId})`).join(',');
-            await db.runAsync(`
+            data.tags.forEach(async (tagId) => {
+                await db.runAsync(`
                 INSERT INTO transaction_tags (transaction_id, tag_id)
-                VALUES ${tagValues};
+                VALUES (${transactionId}, ${tagId});
             `);
+            })
         }
     });
 };

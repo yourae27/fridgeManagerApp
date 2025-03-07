@@ -309,14 +309,15 @@ export const importExcel = async (fileUri: string): Promise<number> => {
                         // 如果标签不存在，创建新标签
                         try {
                             const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-                            const newTagId = await addTag({
+                            const result = await addTag({
                                 name: tagName,
                                 color: randomColor
-                            });
+                            }) as any;
+                            tagMap.set(tagName, result.lastInsertRowId);
+                            transactionTags.push(result.lastInsertRowId);
 
                             // 更新标签映射
-                            tagMap.set(tagName, newTagId as any);
-                            transactionTags.push(newTagId as any);
+
                         } catch (error) {
                             console.error(`Failed to create tag: ${tagName}`, error);
                         }
@@ -325,7 +326,7 @@ export const importExcel = async (fileUri: string): Promise<number> => {
             }
 
             // 处理成员
-            let memberId = 1; // 默认成员ID
+            let memberId = 0; // 默认成员ID
             if (memberName) {
                 if (memberMap.has(memberName)) {
                     memberId = memberMap.get(memberName)!;
@@ -339,7 +340,7 @@ export const importExcel = async (fileUri: string): Promise<number> => {
 
                         // 获取新创建成员的ID
                         const newMemberId = await getMembers().then(members =>
-                            members.find(m => m.name === memberName)?.id || 1
+                            members.find(m => m.name === memberName)?.id || 0
                         );
 
                         // 更新成员映射
@@ -352,7 +353,6 @@ export const importExcel = async (fileUri: string): Promise<number> => {
                     }
                 }
             }
-
             // 添加交易记录
             await addTransaction({
                 type: transactionType,

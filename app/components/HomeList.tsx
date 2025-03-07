@@ -531,7 +531,6 @@ const HomeList = () => {
 
   const renderBudgetSection = () => {
     const stats = calculateSelectedMembersStats();
-    // if (!stats.budget && selectedMembers.length > 0) return null;
 
     const progress = stats.budget ? (stats.expenses / stats.budget) * 100 : 0;
     const displayText = selectedMembers.length === 0
