@@ -288,23 +288,7 @@ const HomeList = () => {
         <TouchableOpacity
           style={[styles.actionButton, styles.editButton]}
           onPress={() => {
-            router.push({
-              pathname: '/screens/add',
-              params: {
-                mode: 'edit',
-                id: transaction.id,
-                type: transaction.type,
-                amount: Math.abs(transaction.amount).toString(),
-                category: transaction.category,
-                categoryIcon: transaction.categoryIcon,
-                note: transaction.note || '',
-                date: transaction.date,
-                initialTab: transaction.type,
-                member_id: transaction.member_id,
-                refunded: transaction.refunded ? 'true' : 'false',
-                tags: transaction.tags?.join(','), // 将 tags 转换为字符串
-              }
-            });
+            handleEdit(transaction);
           }}
         >
           <Ionicons name="pencil-outline" size={24} color="white" />
@@ -409,8 +393,7 @@ const HomeList = () => {
       ? null
       : members.find(m => m.id === transaction.member_id)?.name;
 
-    // 使用组合键确保唯一性：transaction.id + date + index
-    // const uniqueKey = `transaction-${transaction.id}-${transaction.date}-${index}`;
+    // 使用组合键确保唯一性
     const uniqueKey = `${transaction.id}`;
 
     return (
@@ -429,10 +412,16 @@ const HomeList = () => {
           onPress={() => handleEdit(transaction)}
         >
           <View style={styles.transactionLeft}>
-            <View style={[
-              styles.transactionIcon,
-              { backgroundColor: transaction.type === 'income' ? '#FFF8E7' : '#FFF1F1' }
-            ]}>
+            <View
+              style={[
+                styles.categoryIcon,
+                {
+                  backgroundColor: transaction.type === 'income'
+                    ? '#FFF5E5'
+                    : '#FFF1F1'
+                }
+              ]}
+            >
               <Text style={styles.iconText}>
                 {categoryInfo?.icon || transaction.categoryIcon || '📊'}
               </Text>
@@ -716,7 +705,20 @@ const HomeList = () => {
   const handleEdit = (transaction: Transaction) => {
     router.push({
       pathname: '/screens/add',
-      params: { id: transaction.id.toString() }
+      params: {
+        mode: 'edit',
+        id: transaction.id,
+        type: transaction.type,
+        amount: Math.abs(transaction.amount).toString(),
+        category: transaction.category,
+        categoryIcon: transaction.categoryIcon,
+        note: transaction.note || '',
+        date: transaction.date,
+        initialTab: transaction.type,
+        member_id: transaction.member_id,
+        refunded: transaction.refunded ? 'true' : 'false',
+        tags: transaction.tags?.join(','), // 将 tags 转换为字符串
+      }
     });
   };
 
