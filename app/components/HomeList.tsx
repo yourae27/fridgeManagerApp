@@ -394,7 +394,7 @@ const HomeList = () => {
     );
   };
 
-  const renderTransactionItem = (transaction: Transaction) => {
+  const renderTransactionItem = (transaction: Transaction, index: number) => {
     // 获取最新的分类信息
     const categoryInfo = getCategoryInfo(transaction.category, transaction.type);
 
@@ -403,9 +403,13 @@ const HomeList = () => {
       ? null
       : members.find(m => m.id === transaction.member_id)?.name;
 
+    // 使用组合键确保唯一性：transaction.id + date + index
+    // const uniqueKey = `transaction-${transaction.id}-${transaction.date}-${index}`;
+    const uniqueKey = `${transaction.id}`;
+
     return (
       <Swipeable
-        key={transaction.id}
+        key={uniqueKey}
         ref={ref => {
           if (ref) {
             swipeableRefs.current[transaction.id] = ref;
@@ -792,7 +796,7 @@ const HomeList = () => {
           {Object.entries(transactions)
             .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
             .map(([date, items]) => (
-              <View key={date} style={styles.dateGroup}>
+              <View key={`date-${date}`} style={styles.dateGroup}>
                 <View style={styles.dateHeader}>
                   <Text style={styles.dateText}>{formatDate(date)}</Text>
                   <View style={styles.dailyTotal}>
@@ -808,8 +812,8 @@ const HomeList = () => {
                     )}
                   </View>
                 </View>
-                {items.map(transaction => (
-                  renderTransactionItem(transaction)
+                {items.map((transaction, index) => (
+                  renderTransactionItem(transaction, index)
                 ))}
               </View>
             ))}

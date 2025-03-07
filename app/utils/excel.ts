@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import { getTransactions, addTransaction, getCategories, getTags, addCategory, addTag, getMembers, addMember } from '../constants/Storage';
 import * as XLSX from 'xlsx';
 import i18n from '../i18n';
-
+import dayjs from 'dayjs';
 interface ExportData {
     日期: string;
     类型: string;
@@ -155,8 +155,8 @@ export const importExcel = async (fileUri: string): Promise<number> => {
         // 定义可能的列名映射
         const possibleHeaders = {
             date: ['日期', 'date', '时间', 'time', '交易日期', 'transaction date'],
-            type: ['类型', 'type', '交易类型', 'transaction type', '收支类型'],
-            category: ['分类', 'category', '类别', '交易分类'],
+            type: ['类型', 'type', '交易类型', 'transaction type', '收支类型', '收入支出类型'],
+            category: ['分类', 'category', '类别', '交易分类', '账目分类'],
             amount: ['金额', 'amount', '交易金额', '数额'],
             note: ['备注', 'note', '说明', 'description', '描述', 'memo'],
             member: ['成员', 'member', '用户', 'user', '人员'],
@@ -169,7 +169,7 @@ export const importExcel = async (fileUri: string): Promise<number> => {
 
             // 检查这个表头值属于哪个字段
             for (const [field, possibleNames] of Object.entries(possibleHeaders)) {
-                if (possibleNames.some(name => headerValue.includes(name.toLowerCase()))) {
+                if (possibleNames.some(name => headerValue === name.toLowerCase())) {
                     columnMap[field] = colKey;
                     break;
                 }
@@ -215,35 +215,64 @@ export const importExcel = async (fileUri: string): Promise<number> => {
             // 如果关键字段为空，跳过此行
             if (!date || !type || !category || !amount) continue;
 
-            // 验证和转换数据
-            let transactionDate: string;
+            // 处理日期格式
+            let transactionDate = '';
+
             if (typeof date === 'string') {
-                // 尝试解析日期字符串
-                const parsedDate = new Date(date);
-                if (!isNaN(parsedDate.getTime())) {
-                    transactionDate = parsedDate.toISOString().split('T')[0];
+                // 使用 dayjs 解析各种日期格式
+                const formats = [
+                    'YYYY-MM-DD', 'YYYY/MM/DD', 'DD-MM-YYYY', 'DD/MM/YYYY',
+                    'MM-DD-YYYY', 'MM/DD/YYYY', 'YYYY年MM月DD日', 'DD.MM.YYYY',
+                    'YYYY.MM.DD', 'DD-MMM-YYYY', 'MMM DD, YYYY'
+                ];
+
+                let parsedDate = null;
+
+                // 尝试所有格式
+                for (const format of formats) {
+                    const parsed = dayjs(date, format);
+                    if (parsed.isValid()) {
+                        parsedDate = parsed;
+                        break;
+                    }
+                }
+
+                // 如果没有匹配的格式，尝试自动解析
+                if (!parsedDate || !parsedDate.isValid()) {
+                    parsedDate = dayjs(date);
+                }
+
+                // 如果解析成功，使用 YYYY-MM-DD 格式
+                if (parsedDate && parsedDate.isValid()) {
+                    transactionDate = parsedDate.format('YYYY-MM-DD');
                 } else {
-                    // 如果无法解析，使用当前日期
-                    transactionDate = new Date().toISOString().split('T')[0];
+                    // 如果解析失败，使用当前日期
+                    transactionDate = dayjs().format('YYYY-MM-DD');
                 }
             } else if (date instanceof Date) {
-                transactionDate = date.toISOString().split('T')[0];
-            } else {
-                // 尝试将Excel日期数字转换为日期
+                // 如果是 Date 对象，直接格式化
+                transactionDate = dayjs(date).format('YYYY-MM-DD');
+            } else if (typeof date === 'number') {
+                // 处理 Excel 日期数字格式
                 try {
-                    const excelDate = XLSX.SSF.parse_date_code(date);
-                    const jsDate = new Date(excelDate.y, excelDate.m - 1, excelDate.d);
-                    transactionDate = jsDate.toISOString().split('T')[0];
+                    // Excel 日期是从 1900-01-01 开始的天数
+                    // 减去 25569 是为了转换到 1970-01-01 (Unix 时间戳起点)
+                    const excelDate = new Date(Math.round((date - 25569) * 86400 * 1000));
+                    transactionDate = dayjs(excelDate).format('YYYY-MM-DD');
                 } catch (e) {
-                    // 如果无法解析，使用当前日期
-                    transactionDate = new Date().toISOString().split('T')[0];
+                    // 如果转换失败，使用当前日期
+                    transactionDate = dayjs().format('YYYY-MM-DD');
                 }
+            } else {
+                // 默认使用当前日期
+                transactionDate = dayjs().format('YYYY-MM-DD');
             }
 
             // 确定交易类型
             let transactionType: 'income' | 'expense';
+
             if (typeof type === 'string') {
-                transactionType = type.includes('收入') || type.toLowerCase().includes('income')
+                transactionType = (type.includes('收入') || type.toLowerCase().includes('income'))
                     ? 'income'
                     : 'expense';
             } else {
