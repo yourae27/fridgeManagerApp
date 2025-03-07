@@ -199,10 +199,12 @@ const HomeList = () => {
   };
 
   const loadTransactions = async (pageNum: number, replace = false) => {
+    // 如果正在加载中，直接返回
     if (isLoading) return;
-    setIsLoading(true);
 
     try {
+      setIsLoading(true);
+
       const { transactions: newTransactions, hasMore: more } = await getTransactions({
         page: pageNum,
         pageSize: PAGE_SIZE,
@@ -232,7 +234,10 @@ const HomeList = () => {
           const newState = { ...prev };
           Object.entries(grouped).forEach(([date, items]) => {
             if (newState[date]) {
-              newState[date] = [...newState[date], ...(items as Transaction[])];
+              // 检查并过滤掉重复的交易记录
+              const existingIds = new Set(newState[date].map((t: Transaction) => t.id));
+              const uniqueItems = (items as Transaction[]).filter(item => !existingIds.has(item.id));
+              newState[date] = [...newState[date], ...uniqueItems];
             } else {
               newState[date] = items as Transaction[];
             }
