@@ -161,7 +161,8 @@
             "invalidFormat": "文件格式无效。请使用Excel (.xlsx) 文件",
             "fileNotFound": "未找到文件",
             "instructions": "Excel文件应按以下顺序排列列：日期、类型（收入/支出）、分类、金额、备注"
-        }
+        },
+        "appName": "小九九"
     },
     "settings": {
         "title": "设置",

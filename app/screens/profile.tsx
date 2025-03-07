@@ -387,7 +387,7 @@ const Profile = () => {
                     <View style={styles.avatarContainer}>
                         <Text style={styles.avatarText}>九</Text>
                     </View>
-                    <Text style={styles.appName}>NineCents</Text>
+                    <Text style={styles.appName}>{i18n.t('profile.appName')}</Text>
                 </View>
 
                 <View style={styles.menuSection}>

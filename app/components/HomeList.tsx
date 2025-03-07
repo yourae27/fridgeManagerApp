@@ -153,6 +153,7 @@ const HomeList = () => {
       loadMembers();
       loadTags();
       loadCategories();
+      loadTotalBudget();
       return () => {
         // 可选的清理函数
       };
@@ -698,6 +699,14 @@ const HomeList = () => {
     });
   };
 
+  const loadTotalBudget = async () => {
+    try {
+      const budget = await getTotalBudget();
+      setTotalBudget(budget);
+    } catch (error) {
+      console.error('Failed to load total budget:', error);
+    }
+  };
   // 添加处理编辑的函数
   const handleEdit = (transaction: Transaction) => {
     router.push({
@@ -707,15 +716,6 @@ const HomeList = () => {
   };
 
   useEffect(() => {
-    const loadTotalBudget = async () => {
-      try {
-        const budget = await getTotalBudget();
-        setTotalBudget(budget);
-      } catch (error) {
-        console.error('Failed to load total budget:', error);
-      }
-    };
-
     loadTotalBudget();
   }, [refreshTrigger]);
 

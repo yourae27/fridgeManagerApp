@@ -161,7 +161,8 @@
             "invalidFormat": "Invalid file format. Please use Excel (.xlsx) file",
             "fileNotFound": "File not found",
             "instructions": "The Excel file should have columns in this order: Date, Type (income/expense), Category, Amount, Note"
-        }
+        },
+        "appName": "NineCents"
     },
     "settings": {
         "title": "Settings",
