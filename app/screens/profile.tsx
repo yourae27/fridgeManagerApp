@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput, Modal, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput, Modal, Platform, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import i18n from '../i18n';
@@ -385,7 +385,11 @@ const Profile = () => {
             <ScrollView>
                 <View style={styles.header}>
                     <View style={styles.avatarContainer}>
-                        <Text style={styles.avatarText}>九</Text>
+                        <Image
+                            source={require('../../assets/images/logo4.png')}
+                            style={styles.avatarImage}
+                            resizeMode="contain"
+                        />
                     </View>
                     <Text style={styles.appName}>{i18n.t('profile.appName')}</Text>
                 </View>
@@ -440,15 +444,15 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: '#dc4446',
-        justifyContent: 'center',
+        backgroundColor: '#FFF1F1',
         alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: 12,
+        overflow: 'hidden',
     },
-    avatarText: {
-        fontSize: 32,
-        color: 'white',
-        fontWeight: '600',
+    avatarImage: {
+        width: '100%',
+        height: '100%',
     },
     appName: {
         fontSize: 24,
