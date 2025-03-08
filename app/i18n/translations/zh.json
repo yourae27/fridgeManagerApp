@@ -47,13 +47,13 @@
         "used": "已使用",
         "remaining": "剩余",
         "members": "人",
-        "budget": "预算",
-        "noBudget": "未设置预算",
+        "budget": "月预算",
+        "noBudget": "未设置月预算",
         "confirm": "确认",
         "confirmDelete": "确认删除",
         "deleteMemberFailed": "删除成员失败",
         "memberName": "成员名称",
-        "budgetAmount": "预算金额",
+        "budgetAmount": "月预算金额",
         "addMember": "添加成员",
         "addMemberFailed": "添加成员失败",
         "updateMemberFailed": "更新成员失败",
@@ -111,7 +111,7 @@
     },
     "profile": {
         "profile": "我的",
-        "memberBudget": "成员管理与预算",
+        "memberBudget": "成员管理与月预算",
         "exportExcel": "导出Excel",
         "manageCategories": "管理分类",
         "manageTags": "管理标签",
@@ -160,7 +160,7 @@
             "failed": "导入失败",
             "invalidFormat": "文件格式无效。请使用Excel (.xlsx) 文件",
             "fileNotFound": "未找到文件",
-            "instructions": "Excel文件应按以下顺序排列列：日期、类型（收入/支出）、分类、金额、备注"
+            "instructions": "如果是本app导出的文件可直接导入。如果是三方导出的Excel文件应包含以下表头：日期、类型（收入/支出）、分类、金额、备注，否则可能出现大量错误数据，请谨慎使用。"
         },
         "appName": "小九九"
     },
@@ -177,6 +177,6 @@
         "title": "预算",
         "monthly": "月度预算",
         "daily": "日均预算",
-        "totalBudget": "总预算"
+        "totalBudget": "总月预算"
     }
 }

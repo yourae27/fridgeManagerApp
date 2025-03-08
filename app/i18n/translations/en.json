@@ -47,13 +47,13 @@
         "used": "Used",
         "remaining": "Remaining",
         "members": "Members",
-        "budget": "Budget",
-        "noBudget": "No budget",
+        "budget": "Monthly Budget",
+        "noBudget": "No Monthly Budget",
         "confirm": "Confirm",
         "confirmDelete": "Confirm Delete",
         "deleteMemberFailed": "Delete member failed",
         "memberName": "Member name",
-        "budgetAmount": "Budget amount",
+        "budgetAmount": "Monthly Budget Amount",
         "addMember": "Add member",
         "addMemberFailed": "Add member failed",
         "updateMemberFailed": "Update member failed",
@@ -111,7 +111,7 @@
     },
     "profile": {
         "profile": "Profile",
-        "memberBudget": "Member Management And Budget",
+        "memberBudget": "Member Management And Monthly Budget",
         "exportExcel": "Export Excel",
         "manageCategories": "Manage Categories",
         "manageTags": "Manage Tags",
@@ -160,7 +160,7 @@
             "failed": "Import Failed",
             "invalidFormat": "Invalid file format. Please use Excel (.xlsx) file",
             "fileNotFound": "File not found",
-            "instructions": "The Excel file should have columns in this order: Date, Type (income/expense), Category, Amount, Note"
+            "instructions": "If the file is exported by this app, it can be imported directly. If the file is exported by other apps, it should contain the following headers: date, type (income/expense), category, amount, note, otherwise a large number of error data may occur, please use it with caution."
         },
         "appName": "NineCents"
     },
@@ -177,6 +177,6 @@
         "title": "Budget",
         "monthly": "Monthly Budget",
         "daily": "Daily Budget",
-        "totalBudget": "Total Budget"
+        "totalBudget": "Total Monthly Budget"
     }
 }

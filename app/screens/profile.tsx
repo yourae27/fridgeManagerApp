@@ -197,38 +197,42 @@ const Profile = () => {
                             <Text style={styles.exportOptionText}>{i18n.t('profile.export.exportToLocal')}</Text>
                         </TouchableOpacity>
 
-                        <View style={styles.exportDivider} />
-
-                        <View style={styles.emailExportContainer}>
-                            <Text style={styles.emailExportTitle}>{i18n.t('profile.export.exportToEmail')}</Text>
-                            <TextInput
-                                style={styles.emailInput}
-                                placeholder={i18n.t('profile.export.emailPlaceholder')}
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
-                            <View style={styles.exportButtons}>
-                                <TouchableOpacity
-                                    style={[styles.exportButton, styles.cancelButton]}
-                                    onPress={() => setShowExportModal(false)}
-                                >
-                                    <Text style={styles.exportButtonText}>{i18n.t('common.cancel')}</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.exportButton, styles.confirmButton]}
-                                    onPress={handleExport}
-                                >
-                                    <Text style={styles.exportButtonText}>{i18n.t('common.confirm')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
+                        {/* todo: email export */}
+                        {/* <View style={styles.exportDivider} /> */}
+                        {/* {renderExportByEmail()} */}
                     </View>
                 </View>
             </TouchableOpacity>
         </Modal>
     );
+
+    const renderExportByEmail = () => (
+        <View style={styles.emailExportContainer}>
+            <Text style={styles.emailExportTitle}>{i18n.t('profile.export.exportToEmail')}</Text>
+            <TextInput
+                style={styles.emailInput}
+                placeholder={i18n.t('profile.export.emailPlaceholder')}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+            />
+            <View style={styles.exportButtons}>
+                <TouchableOpacity
+                    style={[styles.exportButton, styles.cancelButton]}
+                    onPress={() => setShowExportModal(false)}
+                >
+                    <Text style={styles.exportButtonText}>{i18n.t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.exportButton, styles.confirmButton]}
+                    onPress={handleExport}
+                >
+                    <Text style={styles.exportButtonText}>{i18n.t('common.confirm')}</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    )
 
     const renderImportModal = () => (
         <Modal
