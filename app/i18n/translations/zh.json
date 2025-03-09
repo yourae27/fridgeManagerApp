@@ -181,5 +181,54 @@
         "monthly": "月度预算",
         "daily": "日均预算",
         "totalBudget": "总月预算"
+    },
+    "fridge": {
+        "title": "冰箱管家",
+        "refrigerated": "冷藏",
+        "frozen": "冷冻",
+        "search": "搜索食品",
+        "daysLeft": "剩余天数",
+        "daysStored": "已存放",
+        "days": "天",
+        "emptyState": {
+            "title": "暂无食品",
+            "description": "点击右下角的+按钮添加食品"
+        },
+        "actions": {
+            "edit": "编辑",
+            "discard": "丢弃",
+            "moveToFrozen": "放入冷冻",
+            "moveToRefrigerated": "放入冷藏",
+            "use": "使用",
+            "usePartially": "部分使用",
+            "movePartially": "部分转移"
+        },
+        "modal": {
+            "usePartial": "部分使用",
+            "movePartial": "部分转移",
+            "confirm": "确认",
+            "cancel": "取消",
+            "enterQuantity": "请输入数量"
+        },
+        "settings": {
+            "warningDays": "警示时长",
+            "favorites": "常买清单",
+            "rateApp": "给我的APP评价"
+        },
+        "addItem": {
+            "name": "物品名称",
+            "quantity": "数量",
+            "unit": "单位",
+            "dateAdded": "存入时间",
+            "expiryDate": "到期时间",
+            "openedDate": "拆封时间",
+            "expiryDays": "保质期(天)",
+            "openedExpiryDays": "拆封后保质期(天)",
+            "addToFavorites": "加入常买清单",
+            "myFavorites": "我的常买清单",
+            "putInRefrigerated": "放入冷藏",
+            "putInFrozen": "放入冷冻",
+            "enterName": "请输入物品名称"
+        }
     }
 }

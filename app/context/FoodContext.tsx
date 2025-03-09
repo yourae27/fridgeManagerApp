@@ -1,16 +1,16 @@
 import React, { createContext, useContext, useState } from 'react';
 
-interface DataContextType {
+interface FoodContextType {
     refreshTrigger: number;
     triggerRefresh: () => void;
 }
 
-const DataContext = createContext<DataContextType>({
+const FoodContext = createContext<FoodContextType>({
     refreshTrigger: 0,
     triggerRefresh: () => { },
 });
 
-export const DataProvider = ({ children }: { children: React.ReactNode }) => {
+export const FoodProvider = ({ children }: { children: React.ReactNode }) => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const triggerRefresh = () => {
@@ -18,10 +18,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <DataContext.Provider value={{ refreshTrigger, triggerRefresh }}>
+        <FoodContext.Provider value={{ refreshTrigger, triggerRefresh }}>
             {children}
-        </DataContext.Provider>
+        </FoodContext.Provider>
     );
 };
 
-export const useDataContext = () => useContext(DataContext); 
+export const useFoodContext = () => useContext(FoodContext); 

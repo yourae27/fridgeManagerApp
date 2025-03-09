@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "nineCents",
-    "slug": "nineCents",
+    "name": "fridgeManager",
+    "slug": "fridgeManager",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,14 +10,14 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourae.nineCents"
+      "bundleIdentifier": "com.yourae.fridgeManager"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourae.nineCents"
+      "package": "com.yourae.fridgeManager"
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +46,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "56dc5f4b-b63a-460d-8718-e2fa55b26460"
+        "projectId": ""
       }
     }
   }

@@ -2,28 +2,36 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getSetting } from '../constants/Storage';
 
 interface SettingsContextType {
-    currency: string;
+    theme: string;
+    language: string;
     refreshSettings: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextType>({
-    currency: '¥',
+    theme: 'light',
+    language: 'zh',
     refreshSettings: () => { },
 });
 
 export const SettingsProvider = ({ children }: { children: React.ReactNode }) => {
-    const [currency, setCurrency] = useState('¥');
+    const [theme, setTheme] = useState('light');
+    const [language, setLanguage] = useState('zh');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
-        const loadCurrency = async () => {
-            const savedCurrency = await getSetting('currency');
-            if (savedCurrency) {
-                setCurrency(savedCurrency);
+        const loadSettings = async () => {
+            const savedTheme = await getSetting('theme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+            }
+
+            const savedLanguage = await getSetting('language');
+            if (savedLanguage) {
+                setLanguage(savedLanguage);
             }
         };
 
-        loadCurrency();
+        loadSettings();
     }, [refreshTrigger]);
 
     const refreshSettings = () => {
@@ -31,7 +39,7 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     };
 
     return (
-        <SettingsContext.Provider value={{ currency, refreshSettings }}>
+        <SettingsContext.Provider value={{ theme, language, refreshSettings }}>
             {children}
         </SettingsContext.Provider>
     );

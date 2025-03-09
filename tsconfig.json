@@ -1,8 +1,15 @@
 {
-  "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "module": "esnext",
+    "moduleResolution": "node",
+    "target": "es2016",
+    "jsx": "react-jsx",
     "strict": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
     "paths": {
       "@/*": [
         "./*"
@@ -14,5 +21,9 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "extends": "expo/tsconfig.base"
 }
