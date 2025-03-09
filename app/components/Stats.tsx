@@ -1,5 +1,5 @@
 import React, { useState, useEffect, SetStateAction } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, ActivityIndicator } from 'react-native';
 import { getTransactions, getMembers, getCategories, getTags, getStats } from '../constants/Storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -427,6 +427,32 @@ const Stats = () => {
     return <View style={styles.calendarGrid}>{days}</View>;
   };
 
+  const renderStatsTotal = () => {
+    return <View style={styles.totalAmountSection}>
+      <View style={styles.totalAmountContent}>
+        <Text style={styles.totalAmountLabel}>
+          {dataType === 'income'
+            ? i18n.t('common.monthlyIncome')
+            : i18n.t('common.monthlyExpense')}
+          {period === 'year' && ` (${i18n.t('common.yearly')})`}
+          {period === 'custom' && ` (${i18n.t('common.custom')})`}
+        </Text>
+        <Text style={[
+          styles.totalAmountValue,
+          { color: dataType === 'income' ? '#FF9A2E' : '#dc4446' }
+        ]}>
+          {currency}{totalAmount.toFixed(2)}
+        </Text>
+
+        {period === 'custom' && (
+          <Text style={styles.dateRangeText}>
+            {new Date(customStartDate).toLocaleDateString()} {i18n.t('common.to')} {new Date(customEndDate).toLocaleDateString()}
+          </Text>
+        )}
+      </View>
+    </View>
+  }
+
   const renderCalendarModal = () => (
     <Modal
       visible={showCalendar}
@@ -564,7 +590,7 @@ const Stats = () => {
         )}
 
       </View>
-
+      {renderStatsTotal()}
       <View style={styles.statsContainer}>
         {renderFilterChosen()}
 
@@ -584,6 +610,8 @@ const Stats = () => {
             />
           )}
         </View>
+
+
       </View>
 
       {renderTransactionModal()}
@@ -978,6 +1006,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#dc4446',
+  },
+  totalAmountSection: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  totalAmountContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  totalAmountLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  totalAmountValue: {
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  dateRangeText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
   },
 });
 
