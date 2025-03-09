@@ -679,6 +679,7 @@ export const getStats = async (
       SELECT 
         t.name,
         t.color as color,
+        t.id as id,
         SUM(ABS(tr.amount)) as total_amount
       FROM transactions tr
       JOIN transaction_tags tt ON tr.id = tt.transaction_id
@@ -696,11 +697,12 @@ export const getStats = async (
             : 't.member_id = m.id';
         const nameField = type === 'category' ? 'c.name' : 'm.name';
         const iconField = type === 'category' ? 'c.icon' : '"👤"';
-
+        const idField = type === 'category' ? 'c.id' : 'm.id';
         query = `
       SELECT 
         ${nameField} as name,
         ${iconField} as icon,
+        ${idField} as id,
         SUM(ABS(t.amount)) as total_amount
       FROM transactions t
       LEFT JOIN ${joinTable} ON ${joinCondition}
@@ -718,7 +720,6 @@ export const getStats = async (
     }
 
     const stats = await db.getAllAsync(query, params);
-
     // 获取月度统计数据
     const monthlyStatsQuery = `
     SELECT 
@@ -766,10 +767,11 @@ export const getStats = async (
 
     return {
         stats: stats.map((item: any) => ({
+            id: item.id,
             name: item.name,
             amount: item.total_amount,
             icon: item.icon,
-            color: item.color
+            color: item.color,
         })),
         monthlyStats: {
             income: (monthlyStats as any).income || 0,
