@@ -92,6 +92,7 @@ const Stats = () => {
       );
 
       setStats(result.stats);
+      console.log('result.stats', result.stats)
       setMonthlyStats(result.monthlyStats);
       setTotalAmount(result.stats.reduce((sum, item) => sum + item.amount, 0));
 
@@ -571,7 +572,7 @@ const Stats = () => {
           <View style={styles.statsList}>
             {stats.map((item, index) => (
               <View key={`${item.name}-${index}`}>
-                {renderStatItem(item)}
+                {item.id && renderStatItem(item)}
               </View>
             ))}
           </View>
