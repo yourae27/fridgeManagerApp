@@ -92,7 +92,7 @@ const Stats = () => {
       );
 
       setStats(result.stats);
-      console.log('result.stats', result.stats)
+
       setMonthlyStats(result.monthlyStats);
       setTotalAmount(result.stats.reduce((sum, item) => sum + item.amount, 0));
 
@@ -298,7 +298,7 @@ const Stats = () => {
           startDate = new Date(now.getFullYear(), now.getMonth(), 1);
           endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         }
-        console.log(period, startDate, endDate)
+
         // 导航到详情页面，传递过滤条件
         const itemId = typeof item.id !== 'undefined' ? item.id.toString() : '';
 

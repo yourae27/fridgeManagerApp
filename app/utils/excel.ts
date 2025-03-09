@@ -32,7 +32,7 @@ const createExcelFile = async (): Promise<string> => {
     const tagMap = new Map(allTags.map(tag => [tag.id, tag.name]));
 
     // 需要将transactions按日期分组后再展平
-    const flatTransactions = transactions;
+    const flatTransactions = Object.values(transactions).flat();
 
     // 转换数据格式
     const data: ExportData[] = flatTransactions.map((t: any) => {
@@ -375,10 +375,8 @@ export const importExcel = async (fileUri: string): Promise<number> => {
                         // 更新成员映射
                         memberMap.set(memberName, newMemberId);
                         memberId = newMemberId;
-                        console.log(`Created new member: ${memberName} with ID: ${memberId}`);
                     } catch (error) {
                         console.error(`Failed to create member: ${memberName}`, error);
-                        console.log(`Using default member instead`);
                     }
                 }
             }

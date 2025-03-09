@@ -353,7 +353,6 @@ export const getTransactions = async ({
             const tagsResults = await db.getAllAsync<{ id: number, name: string, color: string }>(tagsQuery, [(item as any).id]);
 
             const tags = tagsResults.map(tag => tag.id);
-            console.log('item', item);
 
             transactions.push({
                 id: (item as any).id,

@@ -137,8 +137,6 @@ const StatsDetail = () => {
                 }
             }
 
-            console.log('Filter applied:', filter);
-
             // 获取交易数据，添加分页参数
             const { transactions: fetchedTransactions, hasMore: moreAvailable } = await getTransactions({
                 page: pageNum,
@@ -146,7 +144,6 @@ const StatsDetail = () => {
                 ...filter
             });
             setHasMore(moreAvailable);
-            console.log('fetchedTransactions', fetchedTransactions);
             const grouped = fetchedTransactions as any;
 
             if (replace) {
