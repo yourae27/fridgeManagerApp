@@ -201,98 +201,189 @@ export const getFavorites = async (type: 'income' | 'expense') => {
         ORDER BY sort_order ASC, id DESC;`);
 };
 
-export const getTransactions = async (options?: {
+export const getTransactions = async ({
+    page = 1,
+    pageSize = 10,
+    filter,
+    memberIds = [],
+    searchText = '',
+    period,
+    startDate,
+    endDate,
+    type,
+    category,
+    tagIds = []
+}: {
     page?: number;
     pageSize?: number;
     filter?: string;
     memberIds?: number[];
     searchText?: string;
+    period?: string;
+    startDate?: string;
+    endDate?: string;
+    type?: 'income' | 'expense';
+    category?: string;
+    tagIds?: number[];
 }) => {
-    const db = await getDB();
-    const {
-        page = 1,
-        pageSize = 10,
-        filter = 'all',
-        memberIds = [],
-        searchText = ''
-    } = options || {};
-
     try {
-        // 构建查询条件
-        let whereClause = '';
-        const whereParams: any[] = [];
+        const db = await getDB();
 
-        // 根据过滤条件筛选
-        if (filter === 'income') {
-            whereClause += 'WHERE t.type = ?';
-            whereParams.push('income');
-        } else if (filter === 'expense') {
-            whereClause += 'WHERE t.type = ?';
-            whereParams.push('expense');
-        } else {
-            whereClause += 'WHERE 1=1';
+        // 构建基本查询
+        let query = 'SELECT * FROM transactions WHERE 1=1';
+        const params: any[] = [];
+
+        // 根据类型过滤（收入/支出）
+        if (type) {
+            query += ' AND type = ?';
+            params.push(type);
         }
 
-        // 根据成员ID筛选
-        if (memberIds.length > 0) {
-            whereClause += ' AND t.member_id IN (' + memberIds.map(() => '?').join(',') + ')';
-            whereParams.push(...memberIds);
+        // 根据分类过滤
+        if (category) {
+            query += ' AND category = ?';
+            params.push(category);
         }
 
-        // 根据搜索文本筛选
+        // 根据成员过滤
+        if (memberIds && memberIds.length > 0) {
+            query += ` AND member_id IN (${memberIds.map(() => '?').join(',')})`;
+            params.push(...memberIds);
+        }
+
+        // 根据标签过滤
+        if (tagIds && tagIds.length > 0) {
+            // 获取包含指定标签的交易ID
+            const tagQuery = `
+                SELECT transaction_id FROM transaction_tags 
+                WHERE tag_id IN (${tagIds.map(() => '?').join(',')})
+                GROUP BY transaction_id
+            `;
+
+            // 使用 getAllAsync 替代 executeSql
+            const tagResults = await db.getAllAsync<{ transaction_id: number }>(tagQuery, tagIds);
+
+            if (tagResults.length > 0) {
+                const transactionIds = tagResults.map(row => row.transaction_id);
+                query += ` AND id IN (${transactionIds.map(() => '?').join(',')})`;
+                params.push(...transactionIds);
+            } else {
+                // 如果没有匹配的标签，返回空结果
+                return { transactions: [], hasMore: false };
+            }
+        }
+
+        // 根据时间范围过滤
+        if (period) {
+            const now = new Date();
+            let periodStartDate;
+
+            if (period === 'month') {
+                // 当月
+                periodStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            } else if (period === 'year') {
+                // 当年
+                periodStartDate = new Date(now.getFullYear(), 0, 1);
+            }
+
+            if (periodStartDate) {
+                query += ' AND date >= ?';
+                params.push(periodStartDate.toISOString().split('T')[0]);
+            }
+        } else if (startDate && endDate) {
+            // 自定义日期范围
+            query += ' AND date >= ? AND date <= ?';
+            params.push(startDate, endDate);
+        }
+
+        // 根据搜索文本过滤
         if (searchText) {
-            whereClause += ' AND (t.note LIKE ? OR t.category LIKE ? OR m.name LIKE ?)';
-            const searchPattern = `%${searchText}%`;
-            whereParams.push(searchPattern, searchPattern, searchPattern);
+            query += ' AND (note LIKE ? OR category LIKE ?)';
+            params.push(`%${searchText}%`, `%${searchText}%`);
         }
 
-        // 获取总记录数
-        const countResult = await db.getAllAsync<{ total: number }>(
-            `SELECT COUNT(*) as total FROM transactions t
-             LEFT JOIN members m ON t.member_id = m.id
-             ${whereClause}`,
-            whereParams
-        );
-        const total = countResult[0].total;
+        // 根据过滤类型过滤（如果有）
+        if (filter && filter !== 'all') {
+            query += ' AND type = ?';
+            params.push(filter);
+        }
 
-        // 构建分页查询
-        let limitClause = '';
+        // 添加排序
+        query += ' ORDER BY date DESC, id DESC';
+
+        // 添加分页
         if (page > 0 && pageSize > 0) {
-            // 正常分页
             const offset = (page - 1) * pageSize;
-            limitClause = `LIMIT ${pageSize} OFFSET ${offset}`;
-        }
-        // 如果 page 或 pageSize 为负数，则不添加 LIMIT 子句，返回所有记录
-
-        // 获取交易记录
-        const transactions: any = await db.getAllAsync(
-            `SELECT t.*, m.name as member FROM transactions t
-             LEFT JOIN members m ON t.member_id = m.id
-             ${whereClause}
-             ORDER BY t.date DESC, t.id DESC
-             ${limitClause}`,
-            whereParams
-        );
-
-        // 获取每个交易的标签
-        for (const transaction of transactions) {
-            const tags = await db.getAllAsync(
-                `SELECT tag_id FROM transaction_tags WHERE transaction_id = ?`,
-                [transaction?.id]
-            );
-            transaction.tags = tags.map((t: any) => t.tag_id);
+            query += ' LIMIT ? OFFSET ?';
+            params.push(pageSize, offset);
         }
 
-        return {
-            transactions,
-            total,
-            page,
-            pageSize,
-            hasMore: pageSize > 0 ? Math.ceil(total / pageSize) > page : false,
-            totalPages: pageSize > 0 ? Math.ceil(total / pageSize) : 1
-        };
+        // 执行查询，使用 getAllAsync 替代 executeSql
+        const results = await db.getAllAsync(query, params);
+
+        // 获取总记录数以确定是否有更多数据
+        let countQuery = 'SELECT COUNT(*) as count FROM transactions WHERE 1=1';
+        const countParams = [...params];
+
+        // 移除分页参数
+        if (page > 0 && pageSize > 0) {
+            countParams.pop(); // 移除 offset
+            countParams.pop(); // 移除 limit
+        }
+
+        // 复制过滤条件到计数查询
+        countQuery = query.replace('SELECT *', 'SELECT COUNT(*) as count').replace(/ORDER BY.*$/, '');
+
+        // 使用 getAllAsync 替代 execAsync
+        const countResults = await db.getAllAsync<{ count: number }>(countQuery, countParams);
+        const totalCount = countResults[0].count;
+
+        // 处理结果
+        const transactions = [];
+        for (const item of results) {
+            // 获取交易的标签
+            const tagsQuery = `
+                SELECT t.id, t.name, t.color 
+                FROM tags t 
+                JOIN transaction_tags tt ON t.id = tt.tag_id 
+                WHERE tt.transaction_id = ?
+            `;
+
+            // 使用 getAllAsync 替代 execAsync
+            const tagsResults = await db.getAllAsync<{ id: number, name: string, color: string }>(tagsQuery, [(item as any).id]);
+
+            const tags = tagsResults.map(tag => tag.id);
+            console.log('item', item);
+
+            transactions.push({
+                id: (item as any).id,
+                type: (item as any).type,
+                amount: (item as any).amount,
+                category: (item as any).category,
+                categoryIcon: (item as any).category_icon,
+                note: (item as any).note,
+                date: (item as any).date,
+                member_id: (item as any).member_id,
+                refunded: (item as any).refunded === 1,
+                tags: tags.length > 0 ? tags : undefined
+            });
+        }
+
+        // 按日期分组
+        const groupedTransactions = transactions.reduce((acc: { [key: string]: any[] }, curr: any) => {
+            const date = curr.date;
+            if (!acc[date]) {
+                acc[date] = [];
+            }
+            acc[date].push(curr);
+            return acc;
+        }, {});
+
+        const hasMore = page * pageSize < totalCount;
+
+        return { transactions: groupedTransactions, hasMore };
     } catch (error) {
-        console.error('Failed to get transactions:', error);
+        console.error('Error getting transactions:', error);
         throw error;
     }
 };

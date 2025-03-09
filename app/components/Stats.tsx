@@ -7,6 +7,7 @@ import EmptyState from './EmptyState';
 import i18n from '../i18n';
 import { useSettings } from '../context/SettingsContext';
 import { router } from 'expo-router';
+import dayjs from 'dayjs';
 
 type StatsType = 'category' | 'member' | 'tag';
 type StatsPeriod = 'month' | 'year' | 'custom';
@@ -157,7 +158,11 @@ const Stats = () => {
 
   const showTransactionDetails = async (itemName: string) => {
     try {
-      const result = await getTransactions();
+      const result = await getTransactions({
+        type: dataType,
+        startDate: customStartDate.toISOString(),
+        endDate: customEndDate.toISOString()
+      });
       const filteredTransactions = (result.transactions as any)?.filter((t: any) => {
         const transactionDate = new Date(t.date);
         const matchDate = period === 'month'
@@ -270,6 +275,29 @@ const Stats = () => {
     <TouchableOpacity
       style={styles.statItem}
       onPress={() => {
+        // 计算日期范围
+        let startDate: Date, endDate: Date;
+        const now = new Date();
+
+        if (period === 'month') {
+          // 当月的起止日期
+
+          startDate = dayjs(selectedDate).startOf('month').toDate();
+          endDate = dayjs(selectedDate).endOf('month').toDate();
+        } else if (period === 'year') {
+          // 当年的起止日期
+          startDate = dayjs(selectedDate).startOf('year').toDate();
+          endDate = dayjs(selectedDate).endOf('year').toDate();
+        } else if (period === 'custom') {
+          // 自定义日期范围
+          startDate = customStartDate;
+          endDate = customEndDate;
+        } else {
+          // 默认使用当月
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        }
+        console.log(period, startDate, endDate)
         // 导航到详情页面，传递过滤条件
         const itemId = typeof item.id !== 'undefined' ? item.id.toString() : '';
 
@@ -279,9 +307,8 @@ const Stats = () => {
             type: type, // 统计类型：category, member, tag
             value: type === 'category' ? item.name : itemId, // 对于分类使用名称，对于成员和标签使用ID
             name: item.name,
-            period: period,
-            startDate: period === 'custom' ? customStartDate.toISOString() : '',
-            endDate: period === 'custom' ? customEndDate.toISOString() : '',
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
             dataType: dataType // expense 或 income
           }
         });

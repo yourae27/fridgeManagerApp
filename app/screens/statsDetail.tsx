@@ -63,7 +63,6 @@ const StatsDetail = () => {
     const filterType = params.type as string;
     const filterValue = params.value as string;
     const filterName = params.name as string;
-    const filterPeriod = params.period as string;
     const filterStartDate = params.startDate as string;
     const filterEndDate = params.endDate as string;
     const filterDataType = params.dataType as 'expense' | 'income';
@@ -113,12 +112,9 @@ const StatsDetail = () => {
             let filter: any = {};
 
             // 设置日期范围
-            if (filterPeriod === 'custom' && filterStartDate && filterEndDate) {
-                // 确保日期格式正确
+            if (filterStartDate && filterEndDate) {
                 filter.startDate = new Date(filterStartDate).toISOString().split('T')[0];
                 filter.endDate = new Date(filterEndDate).toISOString().split('T')[0];
-            } else if (filterPeriod) {
-                filter.period = filterPeriod;
             }
 
             // 设置数据类型（收入/支出）
@@ -130,20 +126,18 @@ const StatsDetail = () => {
             if (filterType === 'category') {
                 filter.category = filterValue;
             } else if (filterType === 'member') {
-                // 确保 memberIds 是数字数组
                 const memberId = parseInt(filterValue);
                 if (!isNaN(memberId)) {
                     filter.memberIds = [memberId];
                 }
             } else if (filterType === 'tag') {
-                // 确保 tagIds 是数字数组
                 const tagId = parseInt(filterValue);
                 if (!isNaN(tagId)) {
                     filter.tagIds = [tagId];
                 }
             }
 
-            console.log('Filter applied:', filter); // 调试用，查看实际应用的过滤条件
+            console.log('Filter applied:', filter);
 
             // 获取交易数据，添加分页参数
             const { transactions: fetchedTransactions, hasMore: moreAvailable } = await getTransactions({
@@ -152,16 +146,8 @@ const StatsDetail = () => {
                 ...filter
             });
             setHasMore(moreAvailable);
-
-            // 按日期分组
-            const grouped = fetchedTransactions.reduce((acc: { [key: string]: Transaction[] }, curr: Transaction) => {
-                const date = curr.date;
-                if (!acc[date]) {
-                    acc[date] = [];
-                }
-                acc[date].push(curr);
-                return acc;
-            }, {});
+            console.log('fetchedTransactions', fetchedTransactions);
+            const grouped = fetchedTransactions as any;
 
             if (replace) {
                 // 如果是替换，直接设置新数据
@@ -430,9 +416,9 @@ const StatsDetail = () => {
                     {filterName} - {filterDataType === 'income' ? i18n.t('common.income') : i18n.t('common.expense')}
                 </Text>
                 <Text style={styles.headerSubtitle}>
-                    {filterPeriod === 'custom'
+                    {filterStartDate && filterEndDate
                         ? `${filterStartDate} ${i18n.t('common.to')} ${filterEndDate}`
-                        : i18n.t(`common.${filterPeriod}`)}
+                        : i18n.t('common.noDate')}
                 </Text>
             </View>
 

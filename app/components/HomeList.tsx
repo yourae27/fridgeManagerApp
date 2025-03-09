@@ -216,14 +216,15 @@ const HomeList = () => {
       setHasMore(more);
 
       // 按日期分组
-      const grouped = newTransactions.reduce((acc: { [key: string]: any[] }, curr: any) => {
-        const date = curr.date;
-        if (!acc[date]) {
-          acc[date] = [];
-        }
-        acc[date].push(curr);
-        return acc;
-      }, {});
+      // const grouped = newTransactions.reduce((acc: { [key: string]: any[] }, curr: any) => {
+      //   const date = curr.date;
+      //   if (!acc[date]) {
+      //     acc[date] = [];
+      //   }
+      //   acc[date].push(curr);
+      //   return acc;
+      // }, {});
+      const grouped = newTransactions as any
 
       if (replace) {
         setTransactions(grouped);
