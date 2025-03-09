@@ -81,6 +81,9 @@
         "profile": "我的",
         "noTransactions": "暂无交易记录"
     },
+    "stats": {
+        "detail": "统计详情"
+    },
     "add": {
         "title": "创建",
         "addIncome": "添加收入",

@@ -178,5 +178,8 @@
         "monthly": "Monthly Budget",
         "daily": "Daily Budget",
         "totalBudget": "Total Monthly Budget"
+    },
+    "stats": {
+        "detail": "StatsDetail"
     }
 }

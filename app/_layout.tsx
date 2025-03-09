@@ -66,6 +66,13 @@ export default function RootLayout() {
                   headerTintColor: headerTintColor,
                 }}
               />
+              <Stack.Screen
+                name="screens/statsDetail"
+                options={{
+                  title: i18n.t('stats.detail'),
+                  headerTintColor: headerTintColor,
+                }}
+              />
             </Stack>
           </CategoryProvider>
         </TransactionProvider>

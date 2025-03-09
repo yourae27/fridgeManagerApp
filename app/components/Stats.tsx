@@ -6,6 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import EmptyState from './EmptyState';
 import i18n from '../i18n';
 import { useSettings } from '../context/SettingsContext';
+import { router } from 'expo-router';
 
 type StatsType = 'category' | 'member' | 'tag';
 type StatsPeriod = 'month' | 'year' | 'custom';
@@ -15,6 +16,7 @@ interface StatItem {
   amount: number;
   icon?: string;
   color?: string;
+  id?: number;
 }
 
 interface Transaction {
@@ -232,7 +234,7 @@ const Stats = () => {
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{selectedItemName}的支出明细</Text>
+            <Text style={styles.modalTitle}>{selectedItemName}{i18n.t('common.expenseDetail')}</Text>
             <TouchableOpacity onPress={() => setShowTransactions(false)}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
@@ -267,7 +269,23 @@ const Stats = () => {
   const renderStatItem = (item: StatItem) => (
     <TouchableOpacity
       style={styles.statItem}
-      onPress={() => showTransactionDetails(item.name)}
+      onPress={() => {
+        // 导航到详情页面，传递过滤条件
+        const itemId = typeof item.id !== 'undefined' ? item.id.toString() : '';
+
+        router.push({
+          pathname: '/screens/statsDetail',
+          params: {
+            type: type, // 统计类型：category, member, tag
+            value: type === 'category' ? item.name : itemId, // 对于分类使用名称，对于成员和标签使用ID
+            name: item.name,
+            period: period,
+            startDate: period === 'custom' ? customStartDate.toISOString() : '',
+            endDate: period === 'custom' ? customEndDate.toISOString() : '',
+            dataType: dataType // expense 或 income
+          }
+        });
+      }}
     >
       <View style={styles.statHeader}>
         <View style={styles.statLeft}>
