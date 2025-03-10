@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert, ActivityIndicator, Modal } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -54,6 +54,7 @@ const AddItem = () => {
     const [showDateAdded, setShowDateAdded] = useState(false);
     const [showExpiryDate, setShowExpiryDate] = useState(false);
     const [showOpenedDate, setShowOpenedDate] = useState(false);
+    const [tempDate, setTempDate] = useState(new Date()); // 用于临时存储日期
 
     // 加载编辑数据
     useEffect(() => {
@@ -131,23 +132,67 @@ const AddItem = () => {
         setActiveTab('new');
     };
 
-    // 日期选择处理
-    const onDateChange = (event: any, selectedDate?: Date) => {
-        if (Platform.OS === 'android') {
-            setShowDateAdded(false);
-            setShowExpiryDate(false);
-            setShowOpenedDate(false);
-        }
-
+    // 处理日期选择
+    const handleDateChange = (event: any, selectedDate?: Date) => {
         if (selectedDate) {
-            if (showDateAdded) {
-                setDateAdded(selectedDate);
-            } else if (showExpiryDate) {
-                setExpiryDate(selectedDate);
-            } else if (showOpenedDate) {
-                setOpenedDate(selectedDate);
-            }
+            setTempDate(selectedDate);
         }
+    };
+
+    // 确认日期选择
+    const handleDateConfirm = (type: 'added' | 'expiry' | 'opened') => {
+        switch (type) {
+            case 'added':
+                setDateAdded(tempDate);
+                setShowDateAdded(false);
+                break;
+            case 'expiry':
+                setExpiryDate(tempDate);
+                setShowExpiryDate(false);
+                break;
+            case 'opened':
+                setOpenedDate(tempDate);
+                setShowOpenedDate(false);
+                break;
+        }
+    };
+
+    // 渲染日期选择器模态框
+    const renderDatePicker = (
+        visible: boolean,
+        onClose: () => void,
+        onConfirm: () => void,
+        currentDate: Date
+    ) => {
+        return (
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={visible}
+                onRequestClose={onClose}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <TouchableOpacity onPress={onClose}>
+                                <Text style={styles.modalButton}>取消</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={onConfirm}>
+                                <Text style={[styles.modalButton, styles.confirmButton]}>确定</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <DateTimePicker
+                            value={currentDate}
+                            mode="date"
+                            display="spinner"
+                            onChange={handleDateChange}
+                            locale="zh-CN"
+                            style={styles.datePicker}
+                        />
+                    </View>
+                </View>
+            </Modal>
+        );
     };
 
     // 保存到常买清单
@@ -324,10 +369,13 @@ const AddItem = () => {
                         <Text style={styles.label}>存入时间</Text>
                         <TouchableOpacity
                             style={styles.dateInput}
-                            onPress={() => setShowDateAdded(true)}
+                            onPress={() => {
+                                setTempDate(dateAdded);
+                                setShowDateAdded(true);
+                            }}
                         >
                             <Text>{dayjs(dateAdded).format('YYYY/MM/DD')}</Text>
-                            <Ionicons name="calendar-outline" size={24} color="#999" />
+                            <Ionicons name="calendar-outline" size={20} color="#999" />
                         </TouchableOpacity>
                     </View>
 
@@ -336,12 +384,15 @@ const AddItem = () => {
                         <Text style={styles.label}>到期时间</Text>
                         <TouchableOpacity
                             style={styles.dateInput}
-                            onPress={() => setShowExpiryDate(true)}
+                            onPress={() => {
+                                setTempDate(expiryDate || new Date());
+                                setShowExpiryDate(true);
+                            }}
                         >
                             <Text>
                                 {expiryDate ? dayjs(expiryDate).format('YYYY/MM/DD') : 'yyyy/mm/dd'}
                             </Text>
-                            <Ionicons name="calendar-outline" size={24} color="#999" />
+                            <Ionicons name="calendar-outline" size={20} color="#999" />
                         </TouchableOpacity>
                     </View>
 
@@ -350,12 +401,15 @@ const AddItem = () => {
                         <Text style={styles.label}>拆封时间</Text>
                         <TouchableOpacity
                             style={styles.dateInput}
-                            onPress={() => setShowOpenedDate(true)}
+                            onPress={() => {
+                                setTempDate(openedDate || new Date());
+                                setShowOpenedDate(true);
+                            }}
                         >
                             <Text>
                                 {openedDate ? dayjs(openedDate).format('YYYY/MM/DD') : 'yyyy/mm/dd'}
                             </Text>
-                            <Ionicons name="calendar-outline" size={24} color="#999" />
+                            <Ionicons name="calendar-outline" size={20} color="#999" />
                         </TouchableOpacity>
                     </View>
 
@@ -429,14 +483,24 @@ const AddItem = () => {
                 </View>
             )}
 
-            {/* 日期选择器 */}
-            {(showDateAdded || showExpiryDate || showOpenedDate) && (
-                <DateTimePicker
-                    value={showDateAdded ? dateAdded : showExpiryDate ? (expiryDate || new Date()) : (openedDate || new Date())}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={onDateChange}
-                />
+            {/* 日期选择器模态框 */}
+            {renderDatePicker(
+                showDateAdded,
+                () => setShowDateAdded(false),
+                () => handleDateConfirm('added'),
+                tempDate
+            )}
+            {renderDatePicker(
+                showExpiryDate,
+                () => setShowExpiryDate(false),
+                () => handleDateConfirm('expiry'),
+                tempDate
+            )}
+            {renderDatePicker(
+                showOpenedDate,
+                () => setShowOpenedDate(false),
+                () => handleDateConfirm('opened'),
+                tempDate
             )}
         </ScrollView>
     );
@@ -596,6 +660,37 @@ const styles = StyleSheet.create({
         marginTop: 16,
         fontSize: 16,
         color: '#666',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+        paddingBottom: 20,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    modalButton: {
+        fontSize: 16,
+        color: '#666',
+    },
+    confirmButton: {
+        color: '#4A90E2',
+        fontWeight: '500',
+    },
+    datePicker: {
+        height: 200,
+        width: '100%',
     },
 });
 
