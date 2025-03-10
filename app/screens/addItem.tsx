@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,10 +20,25 @@ interface FoodItem {
     expiry_days?: number;
 }
 
+interface FavoriteItem {
+    id: number;
+    name: string;
+    quantity: number | null;
+    unit: string | null;
+    expiry_days: number | null;
+    opened_expiry_days: number | null;
+}
+
 const AddItem = () => {
     const params = useLocalSearchParams();
     const isEditing = params.mode === 'edit';
     const { triggerRefresh } = useFoodContext();
+
+    // Tab 状态
+    const [activeTab, setActiveTab] = useState<'new' | 'favorites'>('new');
+    // 常买清单数据
+    const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+    const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
 
     // 表单状态
     const [name, setName] = useState('');
@@ -76,6 +91,45 @@ const AddItem = () => {
             }
         }
     }, [isEditing]); // 只依赖 isEditing，不再依赖 params
+
+    // 加载常买清单
+    const loadFavorites = async () => {
+        try {
+            setIsLoadingFavorites(true);
+            const items = await getFavoriteItems();
+            setFavorites(items as FavoriteItem[]);
+        } catch (error) {
+            console.error('加载常买清单失败:', error);
+            Alert.alert('错误', '加载常买清单失败');
+        } finally {
+            setIsLoadingFavorites(false);
+        }
+    };
+
+    // 当切换到常买清单 tab 时加载数据
+    useEffect(() => {
+        if (activeTab === 'favorites') {
+            loadFavorites();
+        }
+    }, [activeTab]);
+
+    // 选择常买物品
+    const selectFavoriteItem = (item: FavoriteItem) => {
+        setName(item.name);
+        setQuantity(item.quantity ? item.quantity.toString() : '');
+        setUnit(item.unit || '');
+
+        if (item.expiry_days) {
+            setExpiryDays(item.expiry_days.toString());
+        }
+
+        if (item.opened_expiry_days) {
+            setOpenedExpiryDays(item.opened_expiry_days.toString());
+        }
+
+        // 切换回添加物品 tab
+        setActiveTab('new');
+    };
 
     // 日期选择处理
     const onDateChange = (event: any, selectedDate?: Date) => {
@@ -187,141 +241,207 @@ const AddItem = () => {
         }
     };
 
-    // 跳转到常买清单
-    const goToFavorites = () => {
-        router.push('/screens/favorites');
-    };
+    // 渲染常买清单
+    const renderFavoriteItem = (item: FavoriteItem) => (
+        <TouchableOpacity
+            key={item.id}
+            style={styles.favoriteItem}
+            onPress={() => selectFavoriteItem(item)}
+        >
+            <View style={styles.favoriteContent}>
+                <Text style={styles.favoriteName}>{item.name}</Text>
+                <View style={styles.favoriteDetails}>
+                    {item.quantity && item.unit && (
+                        <Text style={styles.favoriteDetail}>
+                            {item.quantity} {item.unit}
+                        </Text>
+                    )}
+                    {item.expiry_days && (
+                        <Text style={styles.favoriteDetail}>
+                            保质期: {item.expiry_days}天
+                        </Text>
+                    )}
+                </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        </TouchableOpacity>
+    );
 
     return (
         <ScrollView style={styles.container}>
-            <View style={styles.form}>
-                {/* 物品名称 */}
-                <View style={styles.formGroup}>
-                    <Text style={styles.label}>物品名称 *</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={name}
-                        onChangeText={setName}
-                        placeholder="请输入物品名称"
-                    />
-                </View>
-
-                {/* 物品数量和单位 */}
-                <View style={styles.rowGroup}>
-                    <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                        <Text style={styles.label}>数量</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={quantity}
-                            onChangeText={setQuantity}
-                            keyboardType="decimal-pad"
-                            placeholder="数量"
-                        />
-                    </View>
-                    <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                        <Text style={styles.label}>单位</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={unit}
-                            onChangeText={setUnit}
-                            placeholder="如: 个、包、克"
-                        />
-                    </View>
-                </View>
-
-                {/* 存入时间 */}
-                <View style={styles.formGroup}>
-                    <Text style={styles.label}>存入时间</Text>
-                    <TouchableOpacity
-                        style={styles.dateInput}
-                        onPress={() => setShowDateAdded(true)}
-                    >
-                        <Text>{dayjs(dateAdded).format('YYYY-MM-DD')}</Text>
-                        <Ionicons name="calendar-outline" size={20} color="#666" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* 到期时间 */}
-                <View style={styles.formGroup}>
-                    <Text style={styles.label}>到期时间</Text>
-                    <TouchableOpacity
-                        style={styles.dateInput}
-                        onPress={() => setShowExpiryDate(true)}
-                    >
-                        <Text>{expiryDate ? dayjs(expiryDate).format('YYYY-MM-DD') : '选择日期'}</Text>
-                        <Ionicons name="calendar-outline" size={20} color="#666" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* 拆封时间 */}
-                <View style={styles.formGroup}>
-                    <Text style={styles.label}>拆封时间</Text>
-                    <TouchableOpacity
-                        style={styles.dateInput}
-                        onPress={() => setShowOpenedDate(true)}
-                    >
-                        <Text>{openedDate ? dayjs(openedDate).format('YYYY-MM-DD') : '选择日期'}</Text>
-                        <Ionicons name="calendar-outline" size={20} color="#666" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* 保质期和拆封后保质期 */}
-                <View style={styles.rowGroup}>
-                    <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                        <Text style={styles.label}>保质期(天)</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={expiryDays}
-                            onChangeText={setExpiryDays}
-                            keyboardType="number-pad"
-                            placeholder="天数"
-                        />
-                    </View>
-                    <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                        <Text style={styles.label}>拆封后保质期(天)</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={openedExpiryDays}
-                            onChangeText={setOpenedExpiryDays}
-                            keyboardType="number-pad"
-                            placeholder="天数"
-                        />
-                    </View>
-                </View>
-
-                {/* 操作按钮组 */}
-                <View style={styles.buttonGroup}>
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: '#FF9500' }]}
-                        onPress={addToFavorites}
-                    >
-                        <Text style={styles.buttonText}>加入常买清单</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: '#34C759' }]}
-                        onPress={goToFavorites}
-                    >
-                        <Text style={styles.buttonText}>我的常买清单</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.buttonGroup}>
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: '#5AC8FA' }]}
-                        onPress={saveToRefrigerated}
-                    >
-                        <Text style={styles.buttonText}>放入冷藏</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.button, { backgroundColor: '#007AFF' }]}
-                        onPress={saveToFrozen}
-                    >
-                        <Text style={styles.buttonText}>放入冷冻</Text>
-                    </TouchableOpacity>
-                </View>
+            {/* Tab 切换器 */}
+            <View style={styles.tabContainer}>
+                <TouchableOpacity
+                    style={[
+                        styles.tab,
+                        activeTab === 'new' && styles.activeTab
+                    ]}
+                    onPress={() => setActiveTab('new')}
+                >
+                    <Text style={[
+                        styles.tabText,
+                        activeTab === 'new' && styles.activeTabText
+                    ]}>
+                        新增物品
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[
+                        styles.tab,
+                        activeTab === 'favorites' && styles.activeTab
+                    ]}
+                    onPress={() => setActiveTab('favorites')}
+                >
+                    <Text style={[
+                        styles.tabText,
+                        activeTab === 'favorites' && styles.activeTabText
+                    ]}>
+                        常买清单
+                    </Text>
+                </TouchableOpacity>
             </View>
+
+            {activeTab === 'new' ? (
+                <View style={styles.form}>
+                    {/* 物品名称 */}
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>物品名称 *</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="请输入物品名称"
+                        />
+                    </View>
+
+                    {/* 物品数量和单位 */}
+                    <View style={styles.rowGroup}>
+                        <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                            <Text style={styles.label}>数量</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={quantity}
+                                onChangeText={setQuantity}
+                                keyboardType="decimal-pad"
+                                placeholder="数量"
+                            />
+                        </View>
+                        <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                            <Text style={styles.label}>单位</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={unit}
+                                onChangeText={setUnit}
+                                placeholder="如: 个、包、克"
+                            />
+                        </View>
+                    </View>
+
+                    {/* 存入时间 */}
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>存入时间</Text>
+                        <TouchableOpacity
+                            style={styles.dateInput}
+                            onPress={() => setShowDateAdded(true)}
+                        >
+                            <Text>{dayjs(dateAdded).format('YYYY-MM-DD')}</Text>
+                            <Ionicons name="calendar-outline" size={20} color="#666" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* 到期时间 */}
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>到期时间</Text>
+                        <TouchableOpacity
+                            style={styles.dateInput}
+                            onPress={() => setShowExpiryDate(true)}
+                        >
+                            <Text>{expiryDate ? dayjs(expiryDate).format('YYYY-MM-DD') : '选择日期'}</Text>
+                            <Ionicons name="calendar-outline" size={20} color="#666" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* 拆封时间 */}
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>拆封时间</Text>
+                        <TouchableOpacity
+                            style={styles.dateInput}
+                            onPress={() => setShowOpenedDate(true)}
+                        >
+                            <Text>{openedDate ? dayjs(openedDate).format('YYYY-MM-DD') : '选择日期'}</Text>
+                            <Ionicons name="calendar-outline" size={20} color="#666" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* 保质期和拆封后保质期 */}
+                    <View style={styles.rowGroup}>
+                        <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                            <Text style={styles.label}>保质期(天)</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={expiryDays}
+                                onChangeText={setExpiryDays}
+                                keyboardType="number-pad"
+                                placeholder="天数"
+                            />
+                        </View>
+                        <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                            <Text style={styles.label}>拆封后保质期(天)</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={openedExpiryDays}
+                                onChangeText={setOpenedExpiryDays}
+                                keyboardType="number-pad"
+                                placeholder="天数"
+                            />
+                        </View>
+                    </View>
+
+                    {/* 操作按钮组 */}
+                    <View style={styles.buttonGroup}>
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: '#FF9500' }]}
+                            onPress={addToFavorites}
+                        >
+                            <Text style={styles.buttonText}>加入常买清单</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.buttonGroup}>
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: '#5AC8FA' }]}
+                            onPress={saveToRefrigerated}
+                        >
+                            <Text style={styles.buttonText}>放入冷藏</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: '#007AFF' }]}
+                            onPress={saveToFrozen}
+                        >
+                            <Text style={styles.buttonText}>放入冷冻</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            ) : (
+                <View style={styles.favoritesContainer}>
+                    {isLoadingFavorites ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#4A90E2" />
+                            <Text style={styles.loadingText}>加载中...</Text>
+                        </View>
+                    ) : favorites.length > 0 ? (
+                        <View style={styles.favoritesList}>
+                            {favorites.map(renderFavoriteItem)}
+                        </View>
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="cart-outline" size={64} color="#ccc" />
+                            <Text style={styles.emptyText}>暂无常买物品</Text>
+                        </View>
+                    )}
+                </View>
+            )}
 
             {/* 日期选择器 */}
             {(showDateAdded || showExpiryDate || showOpenedDate) && (
@@ -390,6 +510,83 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '500',
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        marginHorizontal: 16,
+        marginTop: 16,
+        borderRadius: 8,
+        overflow: 'hidden',
+        backgroundColor: '#f5f5f5',
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+    },
+    activeTab: {
+        backgroundColor: '#4A90E2',
+    },
+    tabText: {
+        fontSize: 16,
+        color: '#666',
+    },
+    activeTabText: {
+        color: 'white',
+        fontWeight: '500',
+    },
+    favoritesContainer: {
+        padding: 16,
+        flex: 1,
+    },
+    favoritesList: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    favoriteItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+    },
+    favoriteContent: {
+        flex: 1,
+    },
+    favoriteName: {
+        fontSize: 16,
+        fontWeight: '500',
+        marginBottom: 4,
+    },
+    favoriteDetails: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    favoriteDetail: {
+        fontSize: 14,
+        color: '#666',
+        marginRight: 12,
+    },
+    loadingContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 32,
+    },
+    loadingText: {
+        marginTop: 8,
+        color: '#666',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 64,
+    },
+    emptyText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#666',
     },
 });
 
