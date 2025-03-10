@@ -30,10 +30,10 @@ export default function RootLayout() {
             headerTitleStyle: {
               fontWeight: 'bold',
             },
+            headerShadowVisible: false,
           }}>
           <Stack.Screen name="index" options={{ title: '冰箱管家' }} />
           <Stack.Screen name="screens/addItem" options={{ title: '添加食品' }} />
-          <Stack.Screen name="screens/profile" options={{ title: '个人中心' }} />
           <Stack.Screen name="screens/favorites" options={{ title: '常买清单' }} />
         </Stack>
       </FoodProvider>

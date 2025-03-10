@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { getFoodItems, deleteFoodItem, updateFoodItem, getWarningDays, addFoodItem } from './constants/Storage';
+import { getFoodItems, deleteFoodItem, updateFoodItem, getWarningDays, addFoodItem, getFavoriteItems } from './constants/Storage';
 import { useFoodContext } from './context/FoodContext';
 import dayjs from 'dayjs';
 import PartialUseModal from './components/PartialUseModal';
@@ -23,6 +23,9 @@ interface FoodItem {
 }
 
 const App = () => {
+  // 新增主 tab 状态
+  const [mainTab, setMainTab] = useState<'list' | 'profile'>('list');
+
   // 状态管理
   const [activeTab, setActiveTab] = useState<'refrigerated' | 'frozen'>('refrigerated');
   const [searchText, setSearchText] = useState('');
@@ -37,6 +40,41 @@ const App = () => {
   const [partialUseType, setPartialUseType] = useState<'use' | 'move'>('use');
 
   const { refreshTrigger, triggerRefresh } = useFoodContext();
+
+  // 从 Profile 页面移植过来的状态和函数
+  const [warningDaysInput, setWarningDaysInput] = useState('');
+
+  useEffect(() => {
+    const loadWarningDaysForProfile = async () => {
+      try {
+        const days = await getWarningDays();
+        setWarningDaysInput(days.toString());
+      } catch (error) {
+        console.error('获取警示时长失败:', error);
+      }
+    };
+
+    if (mainTab === 'profile') {
+      loadWarningDaysForProfile();
+    }
+  }, [mainTab]);
+
+  const handleWarningDaysUpdate = async () => {
+    const days = parseInt(warningDaysInput);
+    if (isNaN(days) || days < 0) {
+      Alert.alert('错误', '请输入有效的天数');
+      return;
+    }
+
+    try {
+      await setWarningDays(days);
+      Alert.alert('成功', '警示时长已更新');
+      triggerRefresh();
+    } catch (error) {
+      console.error('更新警示时长失败:', error);
+      Alert.alert('错误', '更新失败，请重试');
+    }
+  };
 
   // 加载食品数据
   const loadFoodItems = async () => {
@@ -196,6 +234,60 @@ const App = () => {
     }
   };
 
+  // 渲染个人中心内容
+  const renderProfile = () => {
+    return (
+      <ScrollView style={styles.profileContainer}>
+        {/* 警示时长设置 */}
+        <View style={styles.settingItem}>
+          <Text style={styles.settingLabel}>警示时长（天）</Text>
+          <View style={styles.settingInputContainer}>
+            <TextInput
+              style={styles.settingInput}
+              value={warningDaysInput}
+              onChangeText={setWarningDaysInput}
+              keyboardType="numeric"
+              placeholder="请输入天数"
+            />
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleWarningDaysUpdate}
+            >
+              <Text style={styles.saveButtonText}>保存</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.settingDescription}>
+            当食品保质期剩余天数小于警示时长时，将会显示提醒
+          </Text>
+        </View>
+
+        {/* 常买清单入口 */}
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => router.push('/screens/favorites')}
+        >
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>常买清单</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </View>
+        </TouchableOpacity>
+
+        {/* 评价应用 */}
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => {
+            Alert.alert('提示', '感谢您的支持！');
+          }}
+        >
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>评价应用</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  };
+
   // 渲染物品
   const renderItem = ({ item }: { item: FoodItem }) => {
     // 根据存储类型不同计算显示的天数
@@ -276,80 +368,97 @@ const App = () => {
 
   return (
     <View style={styles.container}>
-      {/* 搜索栏 */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color="#999" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="搜索食材"
-            value={searchText}
-            onChangeText={setSearchText}
+      {mainTab === 'list' ? (
+        <>
+          {/* 搜索栏 */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search-outline" size={20} color="#999" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="搜索食材"
+                value={searchText}
+                onChangeText={setSearchText}
+              />
+            </View>
+          </View>
+
+          {/* 标签栏 */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'refrigerated' && styles.activeTab]}
+              onPress={() => setActiveTab('refrigerated')}
+            >
+              <Text style={[
+                styles.tabText,
+                activeTab === 'refrigerated' && styles.activeTabText
+              ]}>冷藏</Text>
+              {activeTab === 'refrigerated' && <View style={styles.tabIndicator} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'frozen' && styles.activeTab]}
+              onPress={() => setActiveTab('frozen')}
+            >
+              <Text style={[
+                styles.tabText,
+                activeTab === 'frozen' && styles.activeTabText
+              ]}>冷冻</Text>
+              {activeTab === 'frozen' && <View style={styles.tabIndicator} />}
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={foodItems}
+            renderItem={renderItem}
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={styles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={loadFoodItems}
+              />
+            }
+            ListEmptyComponent={
+              isLoading ? null : (
+                <EmptyState
+                  icon="snow-outline"
+                  title={activeTab === 'refrigerated' ? '冷藏空空如也' : '冷冻空空如也'}
+                  description={activeTab === 'refrigerated' ? '快去添加食材吧' : '快去添加食材吧'}
+                />
+              )
+            }
           />
-        </View>
-      </View>
 
-      {/* 标签栏 */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'refrigerated' && styles.activeTab]}
-          onPress={() => setActiveTab('refrigerated')}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'refrigerated' && styles.activeTabText
-          ]}>冷藏</Text>
-          {activeTab === 'refrigerated' && <View style={styles.tabIndicator} />}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'frozen' && styles.activeTab]}
-          onPress={() => setActiveTab('frozen')}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'frozen' && styles.activeTabText
-          ]}>冷冻</Text>
-          {activeTab === 'frozen' && <View style={styles.tabIndicator} />}
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        data={foodItems}
-        renderItem={renderItem}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={loadFoodItems}
+          {/* 部分使用模态框 */}
+          <PartialUseModal
+            visible={partialUseModalVisible}
+            onClose={() => setPartialUseModalVisible(false)}
+            onConfirm={handlePartialConfirm}
+            maxQuantity={selectedItem?.quantity || 0}
+            title={partialUseType === 'use' ? '使用部分数量' : '移动部分数量'}
+            unit={selectedItem?.unit || undefined}
           />
-        }
-        ListEmptyComponent={
-          isLoading ? null : (
-            <EmptyState
-              icon="snow-outline"
-              title={activeTab === 'refrigerated' ? '冷藏空空如也' : '冷冻空空如也'}
-              description={activeTab === 'refrigerated' ? '快去添加食材吧' : '快去添加食材吧'}
-            />
-          )
-        }
-      />
-
-      {/* 部分使用模态框 - 保持现有实现 */}
-      <PartialUseModal
-        visible={partialUseModalVisible}
-        onClose={() => setPartialUseModalVisible(false)}
-        onConfirm={handlePartialConfirm}
-        maxQuantity={selectedItem?.quantity || 0}
-        title={partialUseType === 'use' ? '使用部分数量' : '移动部分数量'}
-        unit={selectedItem?.unit || undefined}
-      />
+        </>
+      ) : (
+        // 个人中心内容
+        renderProfile()
+      )}
 
       {/* 底部导航栏 */}
       <View style={styles.bottomNavigation}>
-        <TouchableOpacity style={styles.navItem} onPress={() => { }}>
-          <Ionicons name="list-outline" size={24} color="#4A90E2" />
-          <Text style={[styles.navText, { color: '#4A90E2' }]}>列表</Text>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setMainTab('list')}
+        >
+          <Ionicons
+            name="list-outline"
+            size={24}
+            color={mainTab === 'list' ? '#4A90E2' : '#999'}
+          />
+          <Text style={[
+            styles.navText,
+            mainTab === 'list' && { color: '#4A90E2' }
+          ]}>列表</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -362,10 +471,17 @@ const App = () => {
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => router.push('/screens/profile')}
+          onPress={() => setMainTab('profile')}
         >
-          <Ionicons name="person-outline" size={24} color="#999" />
-          <Text style={styles.navText}>我的</Text>
+          <Ionicons
+            name="person-outline"
+            size={24}
+            color={mainTab === 'profile' ? '#4A90E2' : '#999'}
+          />
+          <Text style={[
+            styles.navText,
+            mainTab === 'profile' && { color: '#4A90E2' }
+          ]}>我的</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -508,6 +624,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     color: '#999',
+  },
+  profileContainer: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  settingItem: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  settingInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  settingInput: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 12,
+    fontSize: 16,
+  },
+  saveButton: {
+    backgroundColor: '#4A90E2',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });
 
