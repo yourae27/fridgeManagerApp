@@ -150,98 +150,72 @@ const AddItem = () => {
         }
     };
 
-    // 保存到冷藏
-    const saveToRefrigerated = async () => {
-        if (!name.trim()) {
-            Alert.alert('提示', '请输入物品名称');
-            return;
-        }
-
-        try {
-            const foodItem: FoodItem = {
-                name: name.trim(),
-                quantity: quantity ? parseFloat(quantity) : undefined,
-                unit: unit.trim() || undefined,
-                storage_type: 'refrigerated',
-                date_added: dateAdded.toISOString().split('T')[0],
-                expiry_date: expiryDate ? expiryDate.toISOString().split('T')[0] : undefined,
-                opened_date: openedDate ? openedDate.toISOString().split('T')[0] : undefined,
-                expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
-                opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : undefined
-            };
-
-            if (isEditing && params.id) {
-                await updateFoodItem(parseInt(params.id as string), foodItem);
-            } else {
-                await addFoodItem(foodItem);
-            }
-
-            triggerRefresh();
-            router.back();
-        } catch (error) {
-            console.error('保存到冷藏失败:', error);
-            Alert.alert('错误', '保存失败，请重试');
-        }
-    };
-
-    // 保存到冷冻
-    const saveToFrozen = async () => {
-        if (!name.trim()) {
-            Alert.alert('提示', '请输入物品名称');
-            return;
-        }
-
-        try {
-            const foodItem: FoodItem = {
-                name: name.trim(),
-                quantity: quantity ? parseFloat(quantity) : undefined,
-                unit: unit.trim() || undefined,
-                storage_type: 'frozen',
-                date_added: dateAdded.toISOString().split('T')[0],
-                expiry_date: expiryDate ? expiryDate.toISOString().split('T')[0] : undefined,
-                opened_date: openedDate ? openedDate.toISOString().split('T')[0] : undefined,
-                expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
-                opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : undefined
-            };
-
-            if (isEditing && params.id) {
-                await updateFoodItem(parseInt(params.id as string), foodItem);
-            } else {
-                await addFoodItem(foodItem);
-            }
-
-            triggerRefresh();
-            router.back();
-        } catch (error) {
-            console.error('保存到冷冻失败:', error);
-            Alert.alert('错误', '保存失败，请重试');
-        }
-    };
-
-    // 加入常买清单
-    const addToFavorites = async () => {
-        if (!name.trim()) {
+    // 保存到常买清单
+    const saveToFavorites = async () => {
+        if (!name) {
             Alert.alert('提示', '请输入物品名称');
             return;
         }
 
         try {
             await addFavoriteItem({
-                name: name.trim(),
-                quantity: quantity ? parseFloat(quantity) : undefined,
-                unit: unit.trim() || undefined,
-                expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
-                opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : undefined
+                name,
+                quantity: quantity ? parseFloat(quantity) : null,
+                unit: unit || null,
+                expiry_days: expiryDays ? parseInt(expiryDays) : null,
+                opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : null,
             });
 
             Alert.alert('成功', '已加入常买清单');
+            triggerRefresh();
         } catch (error) {
-            console.error('加入常买清单失败:', error);
-            Alert.alert('错误', '加入常买清单失败，请重试');
+            console.error('添加到常买清单失败:', error);
+            Alert.alert('错误', '添加失败，请重试');
         }
     };
 
-    // 渲染常买清单
+    // 通用保存函数
+    const saveItem = async (storageType: 'refrigerated' | 'frozen') => {
+        if (!name) {
+            Alert.alert('提示', '请输入物品名称');
+            return;
+        }
+
+        const foodItem: FoodItem = {
+            name,
+            quantity: quantity ? parseFloat(quantity) : undefined,
+            unit: unit || undefined,
+            storage_type: storageType,
+            date_added: dateAdded.toISOString(),
+            expiry_date: expiryDate ? expiryDate.toISOString() : undefined,
+            opened_date: openedDate ? openedDate.toISOString() : undefined,
+            expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
+            opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : undefined,
+        };
+
+        try {
+            if (isEditing && params.id) {
+                await updateFoodItem(parseInt(params.id as string), foodItem);
+                Alert.alert('成功', '食品已更新', [
+                    { text: 'OK', onPress: () => router.back() }
+                ]);
+            } else {
+                await addFoodItem(foodItem);
+                Alert.alert('成功', '食品已添加', [
+                    { text: 'OK', onPress: () => router.back() }
+                ]);
+            }
+            triggerRefresh();
+        } catch (error) {
+            console.error('保存食品失败:', error);
+            Alert.alert('错误', '保存失败，请重试');
+        }
+    };
+
+    const saveToRefrigerated = () => saveItem('refrigerated');
+    const saveToFrozen = () => saveItem('frozen');
+
+    // 渲染常买清单项
     const renderFavoriteItem = (item: FavoriteItem) => (
         <TouchableOpacity
             key={item.id}
@@ -267,6 +241,12 @@ const AddItem = () => {
         </TouchableOpacity>
     );
 
+    // 格式化日期显示
+    const formatDate = (date: Date | null) => {
+        if (!date) return 'yyyy/mm/dd';
+        return dayjs(date).format('YYYY/MM/DD');
+    };
+
     return (
         <ScrollView style={styles.container}>
             {/* Tab 切换器 */}
@@ -281,10 +261,9 @@ const AddItem = () => {
                     <Text style={[
                         styles.tabText,
                         activeTab === 'new' && styles.activeTabText
-                    ]}>
-                        新增物品
-                    </Text>
+                    ]}>新增物品</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                     style={[
                         styles.tab,
@@ -295,9 +274,7 @@ const AddItem = () => {
                     <Text style={[
                         styles.tabText,
                         activeTab === 'favorites' && styles.activeTabText
-                    ]}>
-                        常买清单
-                    </Text>
+                    ]}>常买清单</Text>
                 </TouchableOpacity>
             </View>
 
@@ -305,34 +282,39 @@ const AddItem = () => {
                 <View style={styles.form}>
                     {/* 物品名称 */}
                     <View style={styles.formGroup}>
-                        <Text style={styles.label}>物品名称 *</Text>
+                        <Text style={styles.label}>
+                            物品名称 <Text style={styles.required}>*</Text>
+                        </Text>
                         <TextInput
                             style={styles.input}
                             value={name}
                             onChangeText={setName}
                             placeholder="请输入物品名称"
+                            placeholderTextColor="#999"
                         />
                     </View>
 
-                    {/* 物品数量和单位 */}
+                    {/* 数量和单位 */}
                     <View style={styles.rowGroup}>
-                        <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                        <View style={[styles.formGroup, { flex: 1 }]}>
                             <Text style={styles.label}>数量</Text>
                             <TextInput
                                 style={styles.input}
                                 value={quantity}
                                 onChangeText={setQuantity}
-                                keyboardType="decimal-pad"
+                                keyboardType="numeric"
                                 placeholder="数量"
+                                placeholderTextColor="#999"
                             />
                         </View>
-                        <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                        <View style={[styles.formGroup, { flex: 1, marginLeft: 12 }]}>
                             <Text style={styles.label}>单位</Text>
                             <TextInput
                                 style={styles.input}
                                 value={unit}
                                 onChangeText={setUnit}
                                 placeholder="如: 个、包、克"
+                                placeholderTextColor="#999"
                             />
                         </View>
                     </View>
@@ -344,8 +326,8 @@ const AddItem = () => {
                             style={styles.dateInput}
                             onPress={() => setShowDateAdded(true)}
                         >
-                            <Text>{dayjs(dateAdded).format('YYYY-MM-DD')}</Text>
-                            <Ionicons name="calendar-outline" size={20} color="#666" />
+                            <Text>{dayjs(dateAdded).format('YYYY/MM/DD')}</Text>
+                            <Ionicons name="calendar-outline" size={24} color="#999" />
                         </TouchableOpacity>
                     </View>
 
@@ -356,8 +338,10 @@ const AddItem = () => {
                             style={styles.dateInput}
                             onPress={() => setShowExpiryDate(true)}
                         >
-                            <Text>{expiryDate ? dayjs(expiryDate).format('YYYY-MM-DD') : '选择日期'}</Text>
-                            <Ionicons name="calendar-outline" size={20} color="#666" />
+                            <Text>
+                                {expiryDate ? dayjs(expiryDate).format('YYYY/MM/DD') : 'yyyy/mm/dd'}
+                            </Text>
+                            <Ionicons name="calendar-outline" size={24} color="#999" />
                         </TouchableOpacity>
                     </View>
 
@@ -368,58 +352,60 @@ const AddItem = () => {
                             style={styles.dateInput}
                             onPress={() => setShowOpenedDate(true)}
                         >
-                            <Text>{openedDate ? dayjs(openedDate).format('YYYY-MM-DD') : '选择日期'}</Text>
-                            <Ionicons name="calendar-outline" size={20} color="#666" />
+                            <Text>
+                                {openedDate ? dayjs(openedDate).format('YYYY/MM/DD') : 'yyyy/mm/dd'}
+                            </Text>
+                            <Ionicons name="calendar-outline" size={24} color="#999" />
                         </TouchableOpacity>
                     </View>
 
                     {/* 保质期和拆封后保质期 */}
                     <View style={styles.rowGroup}>
-                        <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                        <View style={[styles.formGroup, { flex: 1 }]}>
                             <Text style={styles.label}>保质期(天)</Text>
                             <TextInput
                                 style={styles.input}
                                 value={expiryDays}
                                 onChangeText={setExpiryDays}
-                                keyboardType="number-pad"
+                                keyboardType="numeric"
                                 placeholder="天数"
+                                placeholderTextColor="#999"
                             />
                         </View>
-                        <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                        <View style={[styles.formGroup, { flex: 1, marginLeft: 12 }]}>
                             <Text style={styles.label}>拆封后保质期(天)</Text>
                             <TextInput
                                 style={styles.input}
                                 value={openedExpiryDays}
                                 onChangeText={setOpenedExpiryDays}
-                                keyboardType="number-pad"
+                                keyboardType="numeric"
                                 placeholder="天数"
+                                placeholderTextColor="#999"
                             />
                         </View>
                     </View>
 
-                    {/* 操作按钮组 */}
-                    <View style={styles.buttonGroup}>
-                        <TouchableOpacity
-                            style={[styles.button, { backgroundColor: '#FF9500' }]}
-                            onPress={addToFavorites}
-                        >
-                            <Text style={styles.buttonText}>加入常买清单</Text>
-                        </TouchableOpacity>
-                    </View>
+                    {/* 底部按钮 */}
+                    <TouchableOpacity
+                        style={[styles.button, styles.favoriteButton]}
+                        onPress={saveToFavorites}
+                    >
+                        <Text style={styles.buttonText}>加入常买清单</Text>
+                    </TouchableOpacity>
 
                     <View style={styles.buttonGroup}>
                         <TouchableOpacity
-                            style={[styles.button, { backgroundColor: '#5AC8FA' }]}
+                            style={[styles.button, styles.refrigeratedButton]}
                             onPress={saveToRefrigerated}
                         >
-                            <Text style={styles.buttonText}>放入冷藏</Text>
+                            <Text style={styles.refrigeratedButtonText}>放入冷藏</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.button, { backgroundColor: '#007AFF' }]}
+                            style={[styles.button, styles.frozenButton]}
                             onPress={saveToFrozen}
                         >
-                            <Text style={styles.buttonText}>放入冷冻</Text>
+                            <Text style={styles.frozenButtonText}>放入冷冻</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -459,7 +445,30 @@ const AddItem = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#fff',
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        margin: 16,
+        borderRadius: 8,
+        overflow: 'hidden',
         backgroundColor: '#f5f5f5',
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 16,
+        alignItems: 'center',
+        backgroundColor: '#f5f5f5',
+    },
+    activeTab: {
+        backgroundColor: '#1a1c25',
+    },
+    tabText: {
+        fontSize: 16,
+        color: '#333',
+    },
+    activeTabText: {
+        color: '#fff',
     },
     form: {
         padding: 16,
@@ -473,67 +482,67 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 16,
-        fontWeight: '500',
+        fontWeight: '400',
         marginBottom: 8,
-        color: '#333',
+        color: '#000',
+    },
+    required: {
+        color: 'red',
     },
     input: {
-        backgroundColor: 'white',
+        backgroundColor: '#f5f5f5',
         borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#ddd',
+        paddingVertical: 12,
+        paddingHorizontal: 12,
         fontSize: 16,
+        color: '#000',
     },
     dateInput: {
-        backgroundColor: 'white',
+        backgroundColor: '#f5f5f5',
         borderRadius: 8,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#ddd',
+        paddingVertical: 12,
+        paddingHorizontal: 12,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
+    button: {
+        padding: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 16,
+    },
     buttonGroup: {
         flexDirection: 'row',
-        marginBottom: 16,
+        justifyContent: 'space-between',
         gap: 12,
     },
-    button: {
-        flex: 1,
-        padding: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
     buttonText: {
-        color: 'white',
+        color: '#333',
         fontSize: 16,
-        fontWeight: '500',
+        fontWeight: '400',
     },
-    tabContainer: {
-        flexDirection: 'row',
-        marginHorizontal: 16,
-        marginTop: 16,
-        borderRadius: 8,
-        overflow: 'hidden',
+    favoriteButton: {
         backgroundColor: '#f5f5f5',
+        marginBottom: 16,
     },
-    tab: {
+    refrigeratedButton: {
         flex: 1,
-        paddingVertical: 12,
-        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#eee',
     },
-    activeTab: {
-        backgroundColor: '#4A90E2',
+    frozenButton: {
+        flex: 1,
+        backgroundColor: '#1a1c25',
     },
-    tabText: {
+    refrigeratedButtonText: {
+        color: '#000',
         fontSize: 16,
-        color: '#666',
     },
-    activeTabText: {
-        color: 'white',
-        fontWeight: '500',
+    frozenButtonText: {
+        color: '#fff',
+        fontSize: 16,
     },
     favoritesContainer: {
         padding: 16,
