@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { getFoodItems, deleteFoodItem, updateFoodItem, getWarningDays } from './constants/Storage';
+import { getFoodItems, deleteFoodItem, updateFoodItem, getWarningDays, addFoodItem } from './constants/Storage';
 import { useFoodContext } from './context/FoodContext';
 import dayjs from 'dayjs';
 import PartialUseModal from './components/PartialUseModal';
@@ -115,7 +115,6 @@ const App = () => {
       pathname: '/screens/addItem',
       params: {
         mode: 'edit',
-        id: item.id,
         ...item
       }
     });
@@ -168,13 +167,13 @@ const App = () => {
           await addFoodItem({
             name: selectedItem.name,
             quantity: quantity,
-            unit: selectedItem.unit,
+            unit: selectedItem.unit || undefined,
             storage_type: selectedItem.storage_type === 'refrigerated' ? 'frozen' : 'refrigerated',
             date_added: new Date().toISOString().split('T')[0],
-            expiry_date: selectedItem.expiry_date,
-            opened_date: selectedItem.opened_date,
-            opened_expiry_days: selectedItem.opened_expiry_days,
-            expiry_days: selectedItem.expiry_days
+            expiry_date: selectedItem.expiry_date || undefined,
+            opened_date: selectedItem.opened_date || undefined,
+            opened_expiry_days: selectedItem.opened_expiry_days || undefined,
+            expiry_days: selectedItem.expiry_days || undefined
           });
         }
       }

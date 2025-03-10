@@ -160,10 +160,10 @@ const AddItem = () => {
         try {
             await addFavoriteItem({
                 name,
-                quantity: quantity ? parseFloat(quantity) : null,
-                unit: unit || null,
-                expiry_days: expiryDays ? parseInt(expiryDays) : null,
-                opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : null,
+                quantity: quantity ? parseFloat(quantity) : undefined,
+                unit: unit || undefined,
+                expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
+                opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : undefined,
             });
 
             Alert.alert('成功', '已加入常买清单');
