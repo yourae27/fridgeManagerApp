@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getFoodItems, deleteFoodItem, updateFoodItem, getWarningDays, addFoodItem } from './constants/Storage';
@@ -94,19 +94,32 @@ const App = () => {
 
   // 计算存放天数（冷冻食品）
   const calculateDaysStored = (dateAdded: string) => {
-    const today = dayjs();
     const addedDate = dayjs(dateAdded);
+    const today = dayjs();
     return today.diff(addedDate, 'day');
   };
 
   // 处理删除
-  const handleDelete = async (id: number) => {
-    try {
-      await deleteFoodItem(id);
-      triggerRefresh();
-    } catch (error) {
-      console.error('删除食品失败:', error);
-    }
+  const handleDelete = (id: number) => {
+    Alert.alert(
+      '确认删除',
+      '确定要丢弃这个物品吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          onPress: async () => {
+            try {
+              await deleteFoodItem(id);
+              triggerRefresh();
+            } catch (error) {
+              console.error('删除失败:', error);
+              Alert.alert('错误', '删除失败，请重试');
+            }
+          }
+        }
+      ]
+    );
   };
 
   // 处理编辑
@@ -183,234 +196,203 @@ const App = () => {
     }
   };
 
-  // 渲染食品项
-  const renderFoodItem = ({ item }: { item: FoodItem }) => {
-    const daysLeft = activeTab === 'refrigerated'
-      ? calculateDaysLeft(item.expiry_date, item.opened_date, item.opened_expiry_days)
-      : null;
+  // 渲染物品
+  const renderItem = ({ item }: { item: FoodItem }) => {
+    // 根据存储类型不同计算显示的天数
+    let daysText = '';
+    let circleColor = '';
 
-    const daysStored = activeTab === 'frozen'
-      ? calculateDaysStored(item.date_added)
-      : null;
+    if (item.storage_type === 'refrigerated') {
+      // 冷藏物品显示剩余天数
+      const remainingDays = calculateDaysLeft(item.expiry_date, item.opened_date, item.opened_expiry_days);
+      const isExpired = remainingDays !== null && remainingDays <= 0;
+      const isWarning = warningDays && remainingDays !== null && remainingDays <= warningDays && remainingDays > 0;
 
-    const isWarning = daysLeft !== null && daysLeft <= warningDays;
+      if (remainingDays !== null) {
+        daysText = isExpired ? '已过期' : `${remainingDays}天`;
+        // 根据剩余天数设置圆圈颜色
+        circleColor = isExpired ? '#dc4446' : isWarning ? '#ff9500' : '#4CAF50';
+      }
+    } else {
+      // 冷冻物品显示已存入天数
+      const daysStored = calculateDaysStored(item.date_added);
+      daysText = `${daysStored}天`;
+      circleColor = '#5AC8FA'; // 冰蓝色
+    }
 
-    return (
-      <View style={styles.foodItem}>
-        {/* 左侧状态指示器 */}
-        <View style={[
-          styles.statusIndicator,
-          activeTab === 'refrigerated'
-            ? (isWarning ? styles.warningIndicator : styles.safeIndicator)
-            : styles.frozenIndicator
-        ]}>
-          <Text style={styles.daysText}>
-            {activeTab === 'refrigerated'
-              ? (daysLeft !== null ? `${daysLeft}天` : '未知')
-              : (daysStored !== null ? `${daysStored}天` : '未知')}
-          </Text>
-        </View>
-
-        {/* 中间信息区 */}
-        <View style={styles.foodInfo}>
-          <Text style={styles.foodName}>{item.name}</Text>
-
-          {item.quantity && (
-            <Text style={styles.foodQuantity}>{item.quantity} {item.unit || ''}</Text>
-          )}
-
-          <View style={styles.dateInfo}>
-            <Text style={styles.foodDate}>存入: {dayjs(item.date_added).format('YYYY-MM-DD')}</Text>
-
-            {activeTab === 'refrigerated' && item.expiry_date && (
-              <Text style={styles.foodDate}>到期: {item.expiry_date}</Text>
-            )}
-
-            {activeTab === 'refrigerated' && item.opened_date && (
-              <Text style={styles.foodDate}>拆封: {item.opened_date}</Text>
-            )}
-          </View>
-        </View>
-
-        {/* 右侧操作区 */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleEdit(item)}>
-            <Ionicons name="pencil" size={18} color="#4A90E2" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleDelete(item.id)}>
-            <Ionicons name="trash" size={18} color="#FF3B30" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={() => handlePartialMove(item)}>
-            <Ionicons
-              name={activeTab === 'refrigerated' ? 'snow' : 'thermometer'}
-              size={18}
-              color="#4A90E2"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={() => handlePartialUse(item)}>
-            <Ionicons name="checkmark-circle" size={18} color="#4CD964" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  // 渲染空状态
-  const renderEmptyState = () => {
-    if (isLoading) {
-      return (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color="#4A90E2" />
-          <Text style={styles.emptyText}>加载中...</Text>
-        </View>
-      );
+    // 获取对应的图标
+    let iconName = 'nutrition-outline';
+    if (item.name.includes('牛奶') || item.name.includes('奶')) {
+      iconName = 'cafe-outline';
+    } else if (item.name.includes('肉')) {
+      iconName = 'restaurant-outline';
+    } else if (item.name.includes('鱼')) {
+      iconName = 'fish-outline';
     }
 
     return (
-      <EmptyState
-        icon={activeTab === 'refrigerated' ? 'thermometer-outline' : 'snow-outline'}
-        title={`冰箱${activeTab === 'refrigerated' ? '冷藏室' : '冷冻室'}空空如也`}
-        description="点击底部的+按钮添加食材"
-      />
+      <View style={styles.itemCard}>
+        <View style={styles.itemHeader}>
+          <View style={styles.itemLeft}>
+            <View style={[styles.iconCircle, { borderColor: circleColor }]}>
+              <Ionicons name={iconName} size={24} color={circleColor} />
+            </View>
+            <View style={styles.itemInfo}>
+              <Text style={styles.itemName}>
+                {item.name} {item.quantity && item.unit ? `${item.quantity}${item.unit}` : ''}
+              </Text>
+              <Text style={styles.itemDate}>
+                存入: {dayjs(item.date_added).format('YYYY-MM-DD')}
+                {item.expiry_date && ` 到期: ${dayjs(item.expiry_date).format('YYYY-MM-DD')}`}
+                {item.opened_date && ` 拆封: ${dayjs(item.opened_date).format('YYYY-MM-DD')}`}
+              </Text>
+            </View>
+          </View>
+          <Text style={[styles.daysRemaining, { color: circleColor }]}>
+            {daysText}
+          </Text>
+        </View>
+
+        <View style={styles.itemActions}>
+          {/* 状态指示 */}
+          <View style={styles.statusContainer}>
+            {item.opened_date ? (
+              <Text style={styles.openedStatus}>已保存</Text>
+            ) : (
+              <Text style={styles.unopenedStatus}>未开封</Text>
+            )}
+          </View>
+
+          {/* 操作按钮 */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => handleEdit(item)}
+            >
+              <Text style={styles.actionButtonText}>编辑</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleDelete(item.id)}
+            >
+              <Text style={styles.actionButtonText}>丢弃</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.moveButton]}
+              onPress={() => handlePartialMove(item)}
+            >
+              <Text style={styles.actionButtonText}>
+                {item.storage_type === 'refrigerated' ? '冷冻' : '冷藏'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.useButton]}
+              onPress={() => handlePartialUse(item)}
+            >
+              <Text style={styles.useButtonText}>使用</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
     );
-  };
-
-  // 刷新处理
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadFoodItems();
-  };
-
-  const renderBottomNavbar = () => (
-    <View style={styles.navbar}>
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => router.push('/')}
-      >
-        <Ionicons
-          name="home"
-          size={24}
-          color="#4A90E2"
-        />
-        <Text style={[styles.navText, { color: '#4A90E2' }]}>首页</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => router.push('/screens/profile')}
-      >
-        <Ionicons
-          name="person"
-          size={24}
-          color="#999"
-        />
-        <Text style={styles.navText}>我的</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const handleAddItem = () => {
-    router.push('/screens/addItem');
   };
 
   return (
     <View style={styles.container}>
-      {/* 搜索框 */}
+      {/* 搜索栏 */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="搜索冰箱中的食材..."
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-        {searchText ? (
-          <TouchableOpacity onPress={() => setSearchText('')}>
-            <Ionicons name="close-circle" size={20} color="#666" />
-          </TouchableOpacity>
-        ) : null}
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={20} color="#999" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="搜索食材"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </View>
       </View>
 
-      {/* 冷藏/冷冻切换标签 */}
-      <View style={styles.tabs}>
+      {/* 标签栏 */}
+      <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'refrigerated' && styles.activeTab]}
           onPress={() => setActiveTab('refrigerated')}
         >
-          <Ionicons
-            name="thermometer-outline"
-            size={20}
-            color={activeTab === 'refrigerated' ? '#4A90E2' : '#999'}
-          />
-          <Text
-            style={[styles.tabText, activeTab === 'refrigerated' && styles.activeTabText]}
-          >
-            冷藏
-          </Text>
+          <Text style={[
+            styles.tabText,
+            activeTab === 'refrigerated' && styles.activeTabText
+          ]}>冷藏</Text>
+          {activeTab === 'refrigerated' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
-
         <TouchableOpacity
           style={[styles.tab, activeTab === 'frozen' && styles.activeTab]}
           onPress={() => setActiveTab('frozen')}
         >
-          <Ionicons
-            name="snow-outline"
-            size={20}
-            color={activeTab === 'frozen' ? '#4A90E2' : '#999'}
-          />
-          <Text
-            style={[styles.tabText, activeTab === 'frozen' && styles.activeTabText]}
-          >
-            冷冻
-          </Text>
+          <Text style={[
+            styles.tabText,
+            activeTab === 'frozen' && styles.activeTabText
+          ]}>冷冻</Text>
+          {activeTab === 'frozen' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
       </View>
 
-      {/* 食品列表 */}
       <FlatList
         data={foodItems}
-        renderItem={renderFoodItem}
+        renderItem={renderItem}
         keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            colors={['#4A90E2']}
+            refreshing={isLoading}
+            onRefresh={loadFoodItems}
           />
+        }
+        ListEmptyComponent={
+          isLoading ? null : (
+            <EmptyState
+              icon="snow-outline"
+              message={activeTab === 'refrigerated' ? '冷藏空空如也' : '冷冻空空如也'}
+            />
+          )
         }
       />
 
-      {/* 浮动添加按钮 */}
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={handleAddItem}
-      >
-        <Text style={styles.floatingButtonText}>+</Text>
-      </TouchableOpacity>
+      {/* 部分使用模态框 - 保持现有实现 */}
+      <PartialUseModal
+        visible={partialUseModalVisible}
+        onClose={() => setPartialUseModalVisible(false)}
+        onConfirm={handlePartialConfirm}
+        maxQuantity={selectedItem?.quantity || 0}
+        title={partialUseType === 'use' ? '使用部分数量' : '移动部分数量'}
+        unit={selectedItem?.unit || undefined}
+      />
 
       {/* 底部导航栏 */}
-      {renderBottomNavbar()}
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity style={styles.navItem} onPress={() => { }}>
+          <Ionicons name="list-outline" size={24} color="#4A90E2" />
+          <Text style={[styles.navText, { color: '#4A90E2' }]}>列表</Text>
+        </TouchableOpacity>
 
-      {/* 部分使用/移动模态框 */}
-      {selectedItem && (
-        <PartialUseModal
-          visible={partialUseModalVisible}
-          onClose={() => setPartialUseModalVisible(false)}
-          onConfirm={handlePartialConfirm}
-          maxQuantity={selectedItem.quantity || 0}
-          title={
-            partialUseType === 'use'
-              ? '使用部分数量'
-              : (activeTab === 'refrigerated' ? '放入冷冻' : '放入冷藏')
-          }
-          unit={selectedItem.unit || undefined}
-        />
-      )}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push('/screens/addItem')}
+        >
+          <Ionicons name="add" size={24} color="#666" />
+          <Text style={styles.navText}>添加</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push('/screens/profile')}
+        >
+          <Ionicons name="person-outline" size={24} color="#999" />
+          <Text style={styles.navText}>我的</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -419,193 +401,172 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    paddingTop: 20,
   },
   searchContainer: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginHorizontal: 16,
-    marginVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderRadius: 8,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
   },
-  tabs: {
+  tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    padding: 4,
+    backgroundColor: 'white',
+    paddingTop: 8,
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    gap: 6,
+    paddingVertical: 12,
+    position: 'relative',
   },
   activeTab: {
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderBottomWidth: 0,
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: '25%',
+    right: '25%',
+    height: 3,
+    backgroundColor: '#4A90E2',
+    borderRadius: 1.5,
   },
   tabText: {
     fontSize: 16,
-    color: '#999',
+    color: '#666',
   },
   activeTabText: {
-    fontWeight: '500',
     color: '#4A90E2',
+    fontWeight: '500',
   },
-  list: {
-    paddingHorizontal: 16,
-    paddingBottom: 80,
+  listContainer: {
+    padding: 16,
   },
-  foodItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  itemCard: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  statusIndicator: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  itemLeft: {
+    flexDirection: 'row',
+    flex: 1,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-  },
-  safeIndicator: {
-    borderColor: '#4CD964',
-  },
-  warningIndicator: {
-    borderColor: '#FF3B30',
-  },
-  frozenIndicator: {
-    borderColor: '#5AC8FA',
-  },
-  daysText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  foodInfo: {
-    flex: 1,
-  },
-  foodName: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  foodQuantity: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  dateInfo: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  foodDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  actionButtons: {
-    flexDirection: 'column',
-    gap: 8,
-  },
-  actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  floatingButton: {
-    position: 'absolute',
-    bottom: 80,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#4A90E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#4A90E2',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  floatingButtonText: {
-    color: 'white',
-    fontSize: 24,
-  },
-  navbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 12,
     backgroundColor: 'white',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 5,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  itemDate: {
+    fontSize: 13,
+    color: '#666',
+  },
+  daysRemaining: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+  },
+  expiredText: {
+    color: '#dc4446',
+  },
+  warningText: {
+    color: '#ff9500',
+  },
+  itemActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusContainer: {
+    padding: 6,
+    borderRadius: 4,
+  },
+  openedStatus: {
+    color: '#4A90E2',
+  },
+  unopenedStatus: {
+    color: '#4A90E2',
+  },
+  useButton: {
+    backgroundColor: '#4CAF50',
+  },
+  useButtonText: {
+    color: 'white',
+    fontWeight: '500',
+  },
+  bottomNavigation: {
+    flexDirection: 'row',
+    height: 56,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    alignItems: 'center',
+    justifyContent: 'space-around',
   },
   navItem: {
     alignItems: 'center',
-    gap: 4,
+    width: 80,
+  },
+  addButton: {
+    alignItems: 'center',
+    width: 80,
   },
   navText: {
+    fontSize: 12,
+    marginTop: 4,
     color: '#999',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  editButton: {
+    backgroundColor: '#4A90E2',
+  },
+  deleteButton: {
+    backgroundColor: '#dc4446',
+  },
+  moveButton: {
+    backgroundColor: '#5AC8FA',
   },
 });
 
