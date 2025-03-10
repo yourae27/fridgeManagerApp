@@ -232,69 +232,43 @@ const App = () => {
 
     return (
       <View style={styles.itemCard}>
-        <View style={styles.itemHeader}>
+        <View style={styles.itemMain}>
+          {/* 左侧图标和天数 */}
           <View style={styles.itemLeft}>
             <View style={[styles.iconCircle, { borderColor: circleColor }]}>
-              <Ionicons name={iconName} size={24} color={circleColor} />
+              <Ionicons name={iconName as any} size={20} color={circleColor} />
             </View>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>
-                {item.name} {item.quantity && item.unit ? `${item.quantity}${item.unit}` : ''}
-              </Text>
-              <Text style={styles.itemDate}>
-                存入: {dayjs(item.date_added).format('YYYY-MM-DD')}
-                {item.expiry_date && ` 到期: ${dayjs(item.expiry_date).format('YYYY-MM-DD')}`}
-                {item.opened_date && ` 拆封: ${dayjs(item.opened_date).format('YYYY-MM-DD')}`}
-              </Text>
-            </View>
+            <Text style={[styles.daysText, { color: circleColor }]}>{daysText}</Text>
           </View>
-          <Text style={[styles.daysRemaining, { color: circleColor }]}>
-            {daysText}
-          </Text>
+
+          {/* 中间内容区 */}
+          <View style={styles.itemContent}>
+            <Text style={styles.itemName}>{item.name}</Text>
+            <Text style={styles.itemDate}>
+              存入: {dayjs(item.date_added).format('YYYY-MM-DD')}
+              {item.expiry_date && ` 到期: ${dayjs(item.expiry_date).format('YYYY-MM-DD')}`}
+            </Text>
+          </View>
         </View>
 
+        {/* 底部操作区 */}
         <View style={styles.itemActions}>
-          {/* 状态指示 */}
-          <View style={styles.statusContainer}>
-            {item.opened_date ? (
-              <Text style={styles.openedStatus}>已保存</Text>
-            ) : (
-              <Text style={styles.unopenedStatus}>未开封</Text>
-            )}
-          </View>
-
-          {/* 操作按钮 */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.editButton]}
-              onPress={() => handleEdit(item)}
-            >
-              <Text style={styles.actionButtonText}>编辑</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton]}
-              onPress={() => handleDelete(item.id)}
-            >
-              <Text style={styles.actionButtonText}>丢弃</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.moveButton]}
-              onPress={() => handlePartialMove(item)}
-            >
-              <Text style={styles.actionButtonText}>
-                {item.storage_type === 'refrigerated' ? '冷冻' : '冷藏'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, styles.useButton]}
-              onPress={() => handlePartialUse(item)}
-            >
-              <Text style={styles.useButtonText}>使用</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={() => handleEdit(item)}>
+            <Ionicons name="pencil-outline" size={20} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDelete(item.id)}>
+            <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handlePartialMove(item)}>
+            <Ionicons
+              name={item.storage_type === 'refrigerated' ? 'snow-outline' : 'thermometer-outline'}
+              size={20}
+              color="#5AC8FA"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handlePartialUse(item)}>
+            <Ionicons name="checkmark-circle-outline" size={20} color="#4CAF50" />
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -354,7 +328,8 @@ const App = () => {
           isLoading ? null : (
             <EmptyState
               icon="snow-outline"
-              message={activeTab === 'refrigerated' ? '冷藏空空如也' : '冷冻空空如也'}
+              title={activeTab === 'refrigerated' ? '冷藏空空如也' : '冷冻空空如也'}
+              description={activeTab === 'refrigerated' ? '快去添加食材吧' : '快去添加食材吧'}
             />
           )
         }
@@ -453,78 +428,64 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   listContainer: {
-    padding: 16,
+    padding: 12,
   },
   itemCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    marginBottom: 8,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  itemHeader: {
+  itemMain: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: 8,
   },
   itemLeft: {
-    flexDirection: 'row',
-    flex: 1,
+    alignItems: 'center',
+    marginRight: 12,
   },
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginBottom: 4,
     backgroundColor: 'white',
   },
-  itemInfo: {
+  daysText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  itemContent: {
     flex: 1,
   },
   itemName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '500',
+    color: '#000',
     marginBottom: 4,
   },
   itemDate: {
-    fontSize: 13,
-    color: '#666',
-  },
-  daysRemaining: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#666',
-  },
-  expiredText: {
-    color: '#dc4446',
-  },
-  warningText: {
-    color: '#ff9500',
+    fontSize: 15,
+    color: '#999',
   },
   itemActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  statusContainer: {
-    padding: 6,
-    borderRadius: 4,
-  },
-  openedStatus: {
-    color: '#4A90E2',
-  },
-  unopenedStatus: {
-    color: '#4A90E2',
-  },
-  useButton: {
-    backgroundColor: '#4CAF50',
-  },
-  useButtonText: {
-    color: 'white',
-    fontWeight: '500',
+    justifyContent: 'flex-start',
+    gap: 20,
   },
   bottomNavigation: {
     flexDirection: 'row',
@@ -548,26 +509,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: '#999',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-    marginLeft: 4,
-  },
-  editButton: {
-    backgroundColor: '#4A90E2',
-  },
-  deleteButton: {
-    backgroundColor: '#dc4446',
-  },
-  moveButton: {
-    backgroundColor: '#5AC8FA',
-  },
 });
 
 export default App;
+
