@@ -355,7 +355,15 @@ const App = () => {
 
           {/* 中间内容区 */}
           <View style={styles.itemContent}>
-            <Text style={styles.itemName}>{item.name}</Text>
+            <View style={styles.itemNameRow}>
+              <Text style={styles.itemName}>{item.name}</Text>
+              {/* 添加数量和单位显示 */}
+              {item.quantity && (
+                <Text style={styles.itemQuantity}>
+                  {item.quantity}{item.unit || ''}
+                </Text>
+              )}
+            </View>
             <Text style={styles.itemDate}>
               存入: {dayjs(item.date_added).format('YYYY-MM-DD')}
               {item.expiry_date && ` 到期: ${dayjs(item.expiry_date).format('YYYY-MM-DD')}`}
@@ -607,11 +615,22 @@ const styles = StyleSheet.create({
   itemContent: {
     flex: 1,
   },
+  itemNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   itemName: {
     fontSize: 17,
     fontWeight: '500',
     color: '#000',
-    marginBottom: 4,
+    flex: 1, // 让名称可以占据剩余空间
+  },
+  itemQuantity: {
+    fontSize: 15,
+    color: '#666',
+    marginLeft: 8,
   },
   itemDate: {
     fontSize: 15,
