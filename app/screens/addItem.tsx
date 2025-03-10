@@ -43,28 +43,39 @@ const AddItem = () => {
     // 加载编辑数据
     useEffect(() => {
         if (isEditing && params.id) {
-            setName(params.name as string);
-            setQuantity(params.quantity ? (params.quantity as string) : '');
-            setUnit(params.unit ? (params.unit as string) : '');
-            setDateAdded(new Date(params.date_added as string));
+            // 提取数据，然后更新状态
+            const id = params.id as string;
+            const name = params.name as string;
+            const quantityParam = params.quantity as string;
+            const unitParam = params.unit as string;
+            const dateAddedParam = params.date_added as string;
+            const expiryDateParam = params.expiry_date as string;
+            const openedDateParam = params.opened_date as string;
+            const expiryDaysParam = params.expiry_days as string;
+            const openedExpiryDaysParam = params.opened_expiry_days as string;
 
-            if (params.expiry_date) {
-                setExpiryDate(new Date(params.expiry_date as string));
+            setName(name);
+            setQuantity(quantityParam || '');
+            setUnit(unitParam || '');
+            setDateAdded(new Date(dateAddedParam));
+
+            if (expiryDateParam) {
+                setExpiryDate(new Date(expiryDateParam));
             }
 
-            if (params.opened_date) {
-                setOpenedDate(new Date(params.opened_date as string));
+            if (openedDateParam) {
+                setOpenedDate(new Date(openedDateParam));
             }
 
-            if (params.expiry_days) {
-                setExpiryDays(params.expiry_days as string);
+            if (expiryDaysParam) {
+                setExpiryDays(expiryDaysParam);
             }
 
-            if (params.opened_expiry_days) {
-                setOpenedExpiryDays(params.opened_expiry_days as string);
+            if (openedExpiryDaysParam) {
+                setOpenedExpiryDays(openedExpiryDaysParam);
             }
         }
-    }, [isEditing, params]);
+    }, [isEditing]); // 只依赖 isEditing，不再依赖 params
 
     // 日期选择处理
     const onDateChange = (event: any, selectedDate?: Date) => {
