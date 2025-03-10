@@ -20,7 +20,18 @@ const getDBSync = () => {
     return dbInstance;
 };
 
-export const initDatabase = () => {
+// 添加历史记录相关的类型定义
+export interface HistoryRecord {
+    id: number;
+    action_type: 'use' | 'discard' | 'add' | 'move';
+    item_name: string;
+    quantity: number | null;
+    unit: string | null;
+    storage_type: 'refrigerated' | 'frozen';
+    action_date: string;
+}
+
+export const initDatabase = async () => {
     const db = getDBSync();
     try {
         // 创建表结构
@@ -52,8 +63,21 @@ export const initDatabase = () => {
                 opened_expiry_days INTEGER
             );
         `);
+
+        // 创建历史记录表
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                action_type TEXT NOT NULL,
+                item_name TEXT NOT NULL,
+                quantity REAL,
+                unit TEXT,
+                storage_type TEXT NOT NULL,
+                action_date TEXT NOT NULL
+            )
+        `);
     } catch (error) {
-        console.error('数据库初始化错误:', error);
+        console.error('初始化数据库失败:', error);
         throw error;
     }
 };
@@ -290,6 +314,35 @@ export const setWarningDays = async (days: number): Promise<void> => {
         await updateSetting('warning_days', days.toString());
     } catch (error) {
         console.error('更新警示时长失败:', error);
+        throw error;
+    }
+};
+
+// 添加历史记录
+export const addHistory = async (record: Omit<HistoryRecord, 'id'>) => {
+    try {
+        const db = await getDB();
+        await db.runAsync(`
+            INSERT INTO history (action_type, item_name, quantity, unit, storage_type, action_date)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [record.action_type, record.item_name, record.quantity, record.unit, record.storage_type, record.action_date]);
+    } catch (error) {
+        console.error('添加历史记录失败:', error);
+        throw error;
+    }
+};
+
+// 获取历史记录
+export const getHistory = async () => {
+    try {
+        const db = await getDB();
+        const result = await db.getAllAsync<HistoryRecord>(`
+            SELECT * FROM history 
+            ORDER BY action_date DESC
+        `);
+        return result;
+    } catch (error) {
+        console.error('获取历史记录失败:', error);
         throw error;
     }
 };

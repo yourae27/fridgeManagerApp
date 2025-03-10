@@ -35,6 +35,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ title: '冰箱管家' }} />
           <Stack.Screen name="screens/addItem" options={{ title: '添加食品' }} />
           <Stack.Screen name="screens/favorites" options={{ title: '常买清单' }} />
+          <Stack.Screen name="screens/history" options={{ title: '历史记录' }} />
         </Stack>
       </FoodProvider>
     </GestureHandlerRootView>

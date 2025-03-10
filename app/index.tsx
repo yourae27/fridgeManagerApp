@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, RefreshControl, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { getFoodItems, deleteFoodItem, updateFoodItem, getWarningDays, addFoodItem, getFavoriteItems } from './constants/Storage';
+import { getFoodItems, deleteFoodItem, updateFoodItem, getWarningDays, addFoodItem, getFavoriteItems, addHistory } from './constants/Storage';
 import { useFoodContext } from './context/FoodContext';
 import dayjs from 'dayjs';
 import PartialUseModal from './components/PartialUseModal';
@@ -138,26 +138,25 @@ const App = () => {
   };
 
   // 处理删除
-  const handleDelete = (id: number) => {
-    Alert.alert(
-      '确认删除',
-      '确定要丢弃这个物品吗？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确定',
-          onPress: async () => {
-            try {
-              await deleteFoodItem(id);
-              triggerRefresh();
-            } catch (error) {
-              console.error('删除失败:', error);
-              Alert.alert('错误', '删除失败，请重试');
-            }
-          }
-        }
-      ]
-    );
+  const handleDelete = async (id: number) => {
+    try {
+      const item = foodItems.find(item => item.id === id);
+      if (item) {
+        await addHistory({
+          action_type: 'discard',
+          item_name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          storage_type: item.storage_type,
+          action_date: new Date().toISOString()
+        });
+      }
+      await deleteFoodItem(id);
+      triggerRefresh();
+    } catch (error) {
+      console.error('删除失败:', error);
+      Alert.alert('错误', '删除失败，请重试');
+    }
   };
 
   // 处理编辑
@@ -190,6 +189,15 @@ const App = () => {
     if (!selectedItem) return;
 
     try {
+      await addHistory({
+        action_type: partialUseType === 'use' ? 'use' : 'move',
+        item_name: selectedItem.name,
+        quantity: quantity,
+        unit: selectedItem.unit,
+        storage_type: selectedItem.storage_type,
+        action_date: new Date().toISOString()
+      });
+
       if (partialUseType === 'use') {
         // 部分使用，更新原数量
         const newQuantity = (selectedItem.quantity || 0) - quantity;
@@ -231,6 +239,7 @@ const App = () => {
       triggerRefresh();
     } catch (error) {
       console.error('操作失败:', error);
+      Alert.alert('错误', '操作失败，请重试');
     }
   };
 
@@ -268,6 +277,17 @@ const App = () => {
         >
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>常买清单</Text>
+            <Ionicons name="chevron-forward" size={20} color="#999" />
+          </View>
+        </TouchableOpacity>
+
+        {/* 历史记录入口 */}
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => router.push('/screens/history')}
+        >
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>历史记录</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </View>
         </TouchableOpacity>
