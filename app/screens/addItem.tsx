@@ -494,7 +494,7 @@ const AddItem = () => {
                     >
                         <Ionicons name="star" size={20} color={Theme.colors.white} style={styles.buttonIcon} />
                         <Text style={styles.favoriteButtonText}>
-                            {isEditing ? '更新常买清单' : '加入常买清单'}
+                            {'加入常买清单'}
                         </Text>
                     </TouchableOpacity>
 
@@ -503,14 +503,18 @@ const AddItem = () => {
                             style={[styles.button, styles.refrigeratedButton]}
                             onPress={saveToRefrigerated}
                         >
-                            <Text style={styles.refrigeratedButtonText}>放入冷藏</Text>
+                            <Text style={styles.refrigeratedButtonText}>
+                                {isEditing ? '更新到冷藏' : '放入冷藏'}
+                            </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.button, styles.frozenButton]}
                             onPress={saveToFrozen}
                         >
-                            <Text style={styles.frozenButtonText}>放入冷冻</Text>
+                            <Text style={styles.frozenButtonText}>
+                                {isEditing ? '更新到冷冻' : '放入冷冻'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>

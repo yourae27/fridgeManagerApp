@@ -169,8 +169,16 @@ const App = () => {
     router.push({
       pathname: '/screens/addItem',
       params: {
-        mode: 'edit',
-        ...item
+        editId: item.id.toString(),
+        name: item.name,
+        quantity: item.quantity?.toString() || '',
+        unit: item.unit || '',
+        date_added: item.date_added,
+        expiry_date: item.expiry_date || '',
+        opened_date: item.opened_date || '',
+        expiry_days: item.expiry_days?.toString() || '',
+        opened_expiry_days: item.opened_expiry_days?.toString() || '',
+        storage_type: item.storage_type
       }
     });
   };

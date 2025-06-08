@@ -14,13 +14,14 @@ import dayjs from 'dayjs';
 interface FoodItem {
   id: number;
   name: string;
-  quantity: number;
-  unit?: string;
-  expiry_date?: string;
+  quantity: number | null;
+  unit: string | null;
+  expiry_date: string | null;
   date_added: string;
-  opened_date?: string;
+  opened_date: string | null;
   storage_type: 'refrigerated' | 'frozen';
-  opened_expiry_days?: number;
+  opened_expiry_days: number | null;
+  expiry_days: number | null;
 }
 
 interface ModernFoodCardProps {
@@ -143,7 +144,7 @@ const ModernFoodCard: React.FC<ModernFoodCardProps> = ({
               {item.name}
             </Text>
             <Text style={styles.itemQuantity}>
-              {item.quantity}{item.unit || '个'}
+              {item.quantity || 0}{item.unit || '个'}
             </Text>
           </View>
           
