@@ -3,8 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platfo
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { addFoodItem, updateFoodItem, addFavoriteItem, getFavoriteItems, getFoodItems } from '../constants/Storage';
+import { addFoodItem, updateFoodItem, addFavoriteItem, getFavoriteItems, getFoodItems, addHistory } from '../constants/Storage';
 import { useFoodContext } from '../context/FoodContext';
+import { Theme } from '../constants/Theme';
+import ModernSegmentedControl from '../components/ModernSegmentedControl';
 import dayjs from 'dayjs';
 
 interface FoodItem {
@@ -134,8 +136,32 @@ const AddItem = () => {
 
     // 处理日期选择
     const handleDateChange = (event: any, selectedDate?: Date) => {
-        if (selectedDate) {
-            setTempDate(selectedDate);
+        if (Platform.OS === 'android') {
+            // Android 上直接处理选择结果
+            const { type } = event;
+            if (type === 'set' && selectedDate) {
+                // 直接更新对应的日期状态
+                if (showDateAdded) {
+                    setDateAdded(selectedDate);
+                    setShowDateAdded(false);
+                } else if (showExpiryDate) {
+                    setExpiryDate(selectedDate);
+                    setShowExpiryDate(false);
+                } else if (showOpenedDate) {
+                    setOpenedDate(selectedDate);
+                    setShowOpenedDate(false);
+                }
+            } else if (type === 'dismissed') {
+                // 用户取消了选择
+                setShowDateAdded(false);
+                setShowExpiryDate(false);
+                setShowOpenedDate(false);
+            }
+        } else {
+            // iOS 上实时更新临时日期
+            if (selectedDate) {
+                setTempDate(selectedDate);
+            }
         }
     };
 
@@ -157,6 +183,8 @@ const AddItem = () => {
         }
     };
 
+
+
     // 渲染日期选择器模态框
     const renderDatePicker = (
         visible: boolean,
@@ -164,6 +192,19 @@ const AddItem = () => {
         onConfirm: () => void,
         currentDate: Date
     ) => {
+        if (Platform.OS === 'android') {
+            // Android 使用原生日期选择器
+            return visible ? (
+                <DateTimePicker
+                    value={currentDate}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateChange}
+                />
+            ) : null;
+        }
+
+        // iOS 使用模态框包装的日期选择器
         return (
             <Modal
                 animationType="slide"
@@ -184,10 +225,12 @@ const AddItem = () => {
                         <DateTimePicker
                             value={currentDate}
                             mode="date"
-                            display="spinner"
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                             onChange={handleDateChange}
                             locale="zh-CN"
                             style={styles.datePicker}
+                            textColor="#000"
+                            themeVariant="light"
                         />
                     </View>
                 </View>
@@ -220,45 +263,61 @@ const AddItem = () => {
     };
 
     // 通用保存函数
-    const saveItem = async (storageType: 'refrigerated' | 'frozen') => {
+    const handleSubmit = async (storageType: any) => {
         if (!name) {
             Alert.alert('提示', '请输入物品名称');
             return;
         }
 
-        const foodItem: FoodItem = {
-            name,
-            quantity: quantity ? parseFloat(quantity) : undefined,
-            unit: unit || undefined,
-            storage_type: storageType,
-            date_added: dateAdded.toISOString(),
-            expiry_date: expiryDate ? expiryDate.toISOString() : undefined,
-            opened_date: openedDate ? openedDate.toISOString() : undefined,
-            expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
-            opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : undefined,
-        };
-
         try {
+            const itemData = {
+                name,
+                quantity: quantity ? parseFloat(quantity) : undefined,
+                unit: unit || undefined,
+                storage_type: storageType,
+                date_added: dayjs(dateAdded).format('YYYY-MM-DD'),
+                expiry_date: expiryDate ? dayjs(expiryDate).format('YYYY-MM-DD') : undefined,
+                opened_date: openedDate ? dayjs(openedDate).format('YYYY-MM-DD') : undefined,
+                opened_expiry_days: openedExpiryDays ? parseInt(openedExpiryDays) : undefined,
+                expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
+            };
+
             if (isEditing && params.id) {
-                await updateFoodItem(parseInt(params.id as string), foodItem);
-                Alert.alert('成功', '食品已更新', [
-                    { text: 'OK', onPress: () => router.back() }
-                ]);
+                // 编辑现有物品
+                await updateFoodItem(parseInt(params.id as string), itemData);
+                // 添加编辑历史记录
+                await addHistory({
+                    action_type: 'edit',
+                    item_name: name,
+                    quantity: quantity ? parseFloat(quantity) : null,
+                    unit: unit || null,
+                    storage_type: storageType,
+                    action_date: new Date().toISOString()
+                });
             } else {
-                await addFoodItem(foodItem);
-                Alert.alert('成功', '食品已添加', [
-                    { text: 'OK', onPress: () => router.back() }
-                ]);
+                // 添加新物品
+                await addFoodItem(itemData);
+                // 添加新增历史记录
+                await addHistory({
+                    action_type: 'add',
+                    item_name: name,
+                    quantity: quantity ? parseFloat(quantity) : null,
+                    unit: unit || null,
+                    storage_type: storageType,
+                    action_date: new Date().toISOString()
+                });
             }
+
             triggerRefresh();
+            router.back();
         } catch (error) {
-            console.error('保存食品失败:', error);
+            console.error('保存失败:', error);
             Alert.alert('错误', '保存失败，请重试');
         }
     };
 
-    const saveToRefrigerated = () => saveItem('refrigerated');
-    const saveToFrozen = () => saveItem('frozen');
+    const saveToRefrigerated = () => handleSubmit('refrigerated');
+    const saveToFrozen = () => handleSubmit('frozen');
 
     // 渲染常买清单项
     const renderFavoriteItem = (item: FavoriteItem) => (
@@ -286,42 +345,19 @@ const AddItem = () => {
         </TouchableOpacity>
     );
 
-    // 格式化日期显示
-    const formatDate = (date: Date | null) => {
-        if (!date) return 'yyyy/mm/dd';
-        return dayjs(date).format('YYYY/MM/DD');
-    };
+
 
     return (
         <ScrollView style={styles.container}>
             {/* Tab 切换器 */}
-            <View style={styles.tabContainer}>
-                <TouchableOpacity
-                    style={[
-                        styles.tab,
-                        activeTab === 'new' && styles.activeTab
-                    ]}
-                    onPress={() => setActiveTab('new')}
-                >
-                    <Text style={[
-                        styles.tabText,
-                        activeTab === 'new' && styles.activeTabText
-                    ]}>新增物品</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[
-                        styles.tab,
-                        activeTab === 'favorites' && styles.activeTab
-                    ]}
-                    onPress={() => setActiveTab('favorites')}
-                >
-                    <Text style={[
-                        styles.tabText,
-                        activeTab === 'favorites' && styles.activeTabText
-                    ]}>常买清单</Text>
-                </TouchableOpacity>
-            </View>
+            <ModernSegmentedControl
+                segments={[
+                    { key: 'new', label: '新增物品' },
+                    { key: 'favorites', label: '常买清单' },
+                ]}
+                activeSegment={activeTab}
+                onSegmentChange={(key) => setActiveTab(key as 'new' | 'favorites')}
+            />
 
             {activeTab === 'new' ? (
                 <View style={styles.form}>
@@ -371,10 +407,14 @@ const AddItem = () => {
                             style={styles.dateInput}
                             onPress={() => {
                                 setTempDate(dateAdded);
-                                setShowDateAdded(true);
+                                if (Platform.OS === 'android') {
+                                    setShowDateAdded(true);
+                                } else {
+                                    setShowDateAdded(true);
+                                }
                             }}
                         >
-                            <Text>{dayjs(dateAdded).format('YYYY/MM/DD')}</Text>
+                            <Text style={styles.dateText}>{dayjs(dateAdded).format('YYYY/MM/DD')}</Text>
                             <Ionicons name="calendar-outline" size={20} color="#999" />
                         </TouchableOpacity>
                     </View>
@@ -386,10 +426,14 @@ const AddItem = () => {
                             style={styles.dateInput}
                             onPress={() => {
                                 setTempDate(expiryDate || new Date());
-                                setShowExpiryDate(true);
+                                if (Platform.OS === 'android') {
+                                    setShowExpiryDate(true);
+                                } else {
+                                    setShowExpiryDate(true);
+                                }
                             }}
                         >
-                            <Text>
+                            <Text style={[styles.dateText, !expiryDate && styles.placeholderText]}>
                                 {expiryDate ? dayjs(expiryDate).format('YYYY/MM/DD') : 'yyyy/mm/dd'}
                             </Text>
                             <Ionicons name="calendar-outline" size={20} color="#999" />
@@ -403,10 +447,14 @@ const AddItem = () => {
                             style={styles.dateInput}
                             onPress={() => {
                                 setTempDate(openedDate || new Date());
-                                setShowOpenedDate(true);
+                                if (Platform.OS === 'android') {
+                                    setShowOpenedDate(true);
+                                } else {
+                                    setShowOpenedDate(true);
+                                }
                             }}
                         >
-                            <Text>
+                            <Text style={[styles.dateText, !openedDate && styles.placeholderText]}>
                                 {openedDate ? dayjs(openedDate).format('YYYY/MM/DD') : 'yyyy/mm/dd'}
                             </Text>
                             <Ionicons name="calendar-outline" size={20} color="#999" />
@@ -509,157 +557,145 @@ const AddItem = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
-    },
-    tabContainer: {
-        flexDirection: 'row',
-        margin: 16,
-        borderRadius: 8,
-        overflow: 'hidden',
-        backgroundColor: '#f5f5f5',
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 16,
-        alignItems: 'center',
-        backgroundColor: '#f5f5f5',
-    },
-    activeTab: {
-        backgroundColor: '#1a1c25',
-    },
-    tabText: {
-        fontSize: 16,
-        color: '#333',
-    },
-    activeTabText: {
-        color: '#fff',
+        backgroundColor: Theme.colors.background,
     },
     form: {
-        padding: 16,
+        padding: Theme.spacing.lg,
     },
     formGroup: {
-        marginBottom: 16,
+        marginBottom: Theme.spacing.lg,
     },
     rowGroup: {
         flexDirection: 'row',
-        marginBottom: 16,
+        marginBottom: Theme.spacing.lg,
     },
     label: {
-        fontSize: 16,
-        fontWeight: '400',
-        marginBottom: 8,
-        color: '#000',
+        fontSize: Theme.typography.fontSize.lg,
+        fontWeight: Theme.typography.fontWeight.semibold,
+        marginBottom: Theme.spacing.sm,
+        color: Theme.colors.textPrimary,
     },
     required: {
-        color: 'red',
+        color: Theme.colors.error,
     },
     input: {
-        backgroundColor: '#f5f5f5',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        fontSize: 16,
-        color: '#000',
+        backgroundColor: Theme.colors.surface,
+        borderRadius: Theme.borderRadius.lg,
+        paddingVertical: Theme.spacing.md,
+        paddingHorizontal: Theme.spacing.md,
+        fontSize: Theme.typography.fontSize.lg,
+        color: Theme.colors.textPrimary,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: Theme.colors.border,
+        ...Theme.shadows.small,
     },
     dateInput: {
-        backgroundColor: '#f5f5f5',
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
+        backgroundColor: Theme.colors.surface,
+        borderRadius: Theme.borderRadius.lg,
+        paddingVertical: Theme.spacing.md,
+        paddingHorizontal: Theme.spacing.md,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: Theme.colors.border,
+        ...Theme.shadows.small,
     },
     button: {
-        padding: 14,
-        borderRadius: 8,
+        padding: Theme.spacing.lg,
+        borderRadius: Theme.borderRadius.lg,
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: Theme.spacing.lg,
+        ...Theme.shadows.small,
     },
     buttonGroup: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        gap: 12,
+        gap: Theme.spacing.md,
     },
     buttonText: {
-        color: '#333',
-        fontSize: 16,
-        fontWeight: '400',
+        fontSize: Theme.typography.fontSize.lg,
+        fontWeight: Theme.typography.fontWeight.semibold,
     },
     favoriteButton: {
-        backgroundColor: '#f5f5f5',
-        marginBottom: 16,
+        backgroundColor: Theme.colors.backgroundSecondary,
+        marginBottom: Theme.spacing.lg,
     },
     refrigeratedButton: {
         flex: 1,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#eee',
+        backgroundColor: Theme.colors.surface,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: Theme.colors.primary,
     },
     frozenButton: {
         flex: 1,
-        backgroundColor: '#1a1c25',
+        backgroundColor: Theme.colors.primary,
     },
     refrigeratedButtonText: {
-        color: '#000',
-        fontSize: 16,
+        color: Theme.colors.primary,
+        fontSize: Theme.typography.fontSize.lg,
+        fontWeight: Theme.typography.fontWeight.semibold,
     },
     frozenButtonText: {
-        color: '#fff',
-        fontSize: 16,
+        color: Theme.colors.white,
+        fontSize: Theme.typography.fontSize.lg,
+        fontWeight: Theme.typography.fontWeight.semibold,
     },
     favoritesContainer: {
-        padding: 16,
+        padding: Theme.spacing.lg,
         flex: 1,
     },
     favoritesList: {
-        backgroundColor: 'white',
-        borderRadius: 12,
+        backgroundColor: Theme.colors.surface,
+        borderRadius: Theme.borderRadius.xl,
         overflow: 'hidden',
+        ...Theme.shadows.small,
     },
     favoriteItem: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        padding: Theme.spacing.lg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: Theme.colors.border,
     },
     favoriteContent: {
         flex: 1,
     },
     favoriteName: {
-        fontSize: 16,
-        fontWeight: '500',
-        marginBottom: 4,
+        fontSize: Theme.typography.fontSize.lg,
+        fontWeight: Theme.typography.fontWeight.semibold,
+        color: Theme.colors.textPrimary,
+        marginBottom: Theme.spacing.xs,
     },
     favoriteDetails: {
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
     favoriteDetail: {
-        fontSize: 14,
-        color: '#666',
-        marginRight: 12,
+        fontSize: Theme.typography.fontSize.md,
+        color: Theme.colors.textSecondary,
+        marginRight: Theme.spacing.md,
     },
     loadingContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 32,
+        paddingVertical: Theme.spacing.xxxl,
     },
     loadingText: {
-        marginTop: 8,
-        color: '#666',
+        marginTop: Theme.spacing.sm,
+        color: Theme.colors.textSecondary,
+        fontSize: Theme.typography.fontSize.md,
     },
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 64,
+        paddingVertical: Theme.spacing.xxxxl * 2,
     },
     emptyText: {
-        marginTop: 16,
-        fontSize: 16,
-        color: '#666',
+        marginTop: Theme.spacing.lg,
+        fontSize: Theme.typography.fontSize.lg,
+        color: Theme.colors.textSecondary,
     },
     modalOverlay: {
         flex: 1,
@@ -667,31 +703,45 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: 'white',
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-        paddingBottom: 20,
+        backgroundColor: Theme.colors.surface,
+        borderTopLeftRadius: Theme.borderRadius.xl,
+        borderTopRightRadius: Theme.borderRadius.xl,
+        paddingBottom: Platform.OS === 'ios' ? 34 : Theme.spacing.lg,
+        maxHeight: '50%',
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        padding: Theme.spacing.lg,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: Theme.colors.border,
+        backgroundColor: Theme.colors.backgroundSecondary,
+        borderTopLeftRadius: Theme.borderRadius.xl,
+        borderTopRightRadius: Theme.borderRadius.xl,
     },
     modalButton: {
-        fontSize: 16,
-        color: '#666',
+        fontSize: Theme.typography.fontSize.xl,
+        color: Theme.colors.textSecondary,
+        paddingVertical: Theme.spacing.xs,
+        paddingHorizontal: Theme.spacing.sm,
     },
     confirmButton: {
-        color: '#4A90E2',
-        fontWeight: '500',
+        color: Theme.colors.primary,
+        fontWeight: Theme.typography.fontWeight.semibold,
     },
     datePicker: {
-        height: 200,
+        height: Platform.OS === 'ios' ? 216 : 200,
         width: '100%',
+        backgroundColor: Theme.colors.surface,
+    },
+    dateText: {
+        fontSize: Theme.typography.fontSize.lg,
+        color: Theme.colors.textPrimary,
+    },
+    placeholderText: {
+        color: Theme.colors.textTertiary,
     },
 });
 
-export default AddItem; 
+export default AddItem;

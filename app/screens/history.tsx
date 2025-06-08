@@ -36,6 +36,8 @@ const History = () => {
                 return `添加了${quantity}${record.item_name}到${record.storage_type === 'refrigerated' ? '冷藏' : '冷冻'}`;
             case 'move':
                 return `将${quantity}${record.item_name}从${record.storage_type === 'refrigerated' ? '冷藏移到冷冻' : '冷冻移到冷藏'}`;
+            case 'edit':
+                return `编辑了${record.item_name}的信息`;
             default:
                 return '';
         }
@@ -48,7 +50,9 @@ const History = () => {
                     name={
                         item.action_type === 'use' ? 'checkmark-circle-outline' :
                             item.action_type === 'discard' ? 'trash-outline' :
-                                item.action_type === 'add' ? 'add-circle-outline' : 'swap-horizontal-outline'
+                                item.action_type === 'add' ? 'add-circle-outline' :
+                                    item.action_type === 'edit' ? 'pencil-outline' :
+                                        'swap-horizontal-outline'
                     }
                     size={24}
                     color="#666"

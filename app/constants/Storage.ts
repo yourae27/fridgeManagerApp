@@ -23,7 +23,7 @@ const getDBSync = () => {
 // 添加历史记录相关的类型定义
 export interface HistoryRecord {
     id: number;
-    action_type: 'use' | 'discard' | 'add' | 'move';
+    action_type: 'use' | 'discard' | 'add' | 'move' | 'edit';
     item_name: string;
     quantity: number | null;
     unit: string | null;

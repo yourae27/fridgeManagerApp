@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import './i18n'; // 导入 i18n 配置
 import i18n from './i18n'; // 导入 i18n 配置
 import { FoodProvider } from './context/FoodContext';
+import { Theme } from './constants/Theme';
 
 export default function RootLayout() {
   useEffect(() => {
@@ -24,13 +25,16 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerStyle: {
-              backgroundColor: 'white',
+              backgroundColor: Theme.colors.surface,
             },
-            headerTintColor: 'gray',
+            headerTintColor: Theme.colors.textPrimary,
             headerTitleStyle: {
-              fontWeight: 'bold',
+              fontWeight: Theme.typography.fontWeight.semibold,
+              fontSize: Theme.typography.fontSize.xl,
+              color: Theme.colors.textPrimary,
             },
             headerShadowVisible: false,
+            headerBackTitleVisible: false,
           }}>
           <Stack.Screen name="index" options={{ title: '冰箱管家' }} />
           <Stack.Screen name="screens/addItem" options={{ title: '添加食品' }} />

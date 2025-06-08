@@ -7,6 +7,11 @@ import { useFoodContext } from './context/FoodContext';
 import dayjs from 'dayjs';
 import PartialUseModal from './components/PartialUseModal';
 import EmptyState from './components/EmptyState';
+import ModernTabBar from './components/ModernTabBar';
+import ModernSearchBar from './components/ModernSearchBar';
+import ModernSegmentedControl from './components/ModernSegmentedControl';
+import ModernFoodCard from './components/ModernFoodCard';
+import { Theme } from './constants/Theme';
 import i18n from './i18n';
 
 interface FoodItem {
@@ -310,87 +315,13 @@ const App = () => {
 
   // 渲染物品
   const renderItem = ({ item }: { item: FoodItem }) => {
-    // 根据存储类型不同计算显示的天数
-    let daysText = '';
-    let circleColor = '';
-
-    if (item.storage_type === 'refrigerated') {
-      // 冷藏物品显示剩余天数
-      const remainingDays = calculateDaysLeft(item.expiry_date, item.opened_date, item.opened_expiry_days);
-      const isExpired = remainingDays !== null && remainingDays <= 0;
-      const isWarning = warningDays && remainingDays !== null && remainingDays <= warningDays && remainingDays > 0;
-
-      if (remainingDays !== null) {
-        daysText = isExpired ? '已过期' : `${remainingDays}天`;
-        // 根据剩余天数设置圆圈颜色
-        circleColor = isExpired ? '#dc4446' : isWarning ? '#ff9500' : '#4CAF50';
-      }
-    } else {
-      // 冷冻物品显示已存入天数
-      const daysStored = calculateDaysStored(item.date_added);
-      daysText = `${daysStored}天`;
-      circleColor = '#5AC8FA'; // 冰蓝色
-    }
-
-    // 获取对应的图标
-    let iconName = 'nutrition-outline';
-    if (item.name.includes('牛奶') || item.name.includes('奶')) {
-      iconName = 'cafe-outline';
-    } else if (item.name.includes('肉')) {
-      iconName = 'restaurant-outline';
-    } else if (item.name.includes('鱼')) {
-      iconName = 'fish-outline';
-    }
-
     return (
-      <View style={styles.itemCard}>
-        <View style={styles.itemMain}>
-          {/* 左侧图标和天数 */}
-          <View style={styles.itemLeft}>
-            <View style={[styles.iconCircle, { borderColor: circleColor }]}>
-              <Ionicons name={iconName as any} size={20} color={circleColor} />
-            </View>
-            <Text style={[styles.daysText, { color: circleColor }]}>{daysText}</Text>
-          </View>
-
-          {/* 中间内容区 */}
-          <View style={styles.itemContent}>
-            <View style={styles.itemNameRow}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              {/* 添加数量和单位显示 */}
-              {item.quantity && (
-                <Text style={styles.itemQuantity}>
-                  {item.quantity}{item.unit || ''}
-                </Text>
-              )}
-            </View>
-            <Text style={styles.itemDate}>
-              存入: {dayjs(item.date_added).format('YYYY-MM-DD')}
-              {item.expiry_date && ` 到期: ${dayjs(item.expiry_date).format('YYYY-MM-DD')}`}
-            </Text>
-          </View>
-        </View>
-
-        {/* 底部操作区 */}
-        <View style={styles.itemActions}>
-          <TouchableOpacity onPress={() => handleEdit(item)}>
-            <Ionicons name="pencil-outline" size={20} color="#666" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleDelete(item.id)}>
-            <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handlePartialMove(item)}>
-            <Ionicons
-              name={item.storage_type === 'refrigerated' ? 'snow-outline' : 'thermometer-outline'}
-              size={20}
-              color="#5AC8FA"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handlePartialUse(item)}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#4CAF50" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ModernFoodCard
+        item={item}
+        onPress={() => handleEdit(item)}
+        onUse={() => handlePartialUse(item)}
+        onMove={() => handlePartialMove(item)}
+      />
     );
   };
 
@@ -399,41 +330,21 @@ const App = () => {
       {mainTab === 'list' ? (
         <>
           {/* 搜索栏 */}
-          <View style={styles.searchContainer}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search-outline" size={20} color="#999" />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="搜索食材"
-                value={searchText}
-                onChangeText={setSearchText}
-              />
-            </View>
-          </View>
+          <ModernSearchBar
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="搜索食材..."
+          />
 
           {/* 标签栏 */}
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'refrigerated' && styles.activeTab]}
-              onPress={() => setActiveTab('refrigerated')}
-            >
-              <Text style={[
-                styles.tabText,
-                activeTab === 'refrigerated' && styles.activeTabText
-              ]}>冷藏</Text>
-              {activeTab === 'refrigerated' && <View style={styles.tabIndicator} />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'frozen' && styles.activeTab]}
-              onPress={() => setActiveTab('frozen')}
-            >
-              <Text style={[
-                styles.tabText,
-                activeTab === 'frozen' && styles.activeTabText
-              ]}>冷冻</Text>
-              {activeTab === 'frozen' && <View style={styles.tabIndicator} />}
-            </TouchableOpacity>
-          </View>
+          <ModernSegmentedControl
+            segments={[
+              { key: 'refrigerated', label: '冷藏' },
+              { key: 'frozen', label: '冷冻' },
+            ]}
+            activeSegment={activeTab}
+            onSegmentChange={(key) => setActiveTab(key as 'refrigerated' | 'frozen')}
+          />
 
           <FlatList
             data={foodItems}
@@ -473,45 +384,10 @@ const App = () => {
       )}
 
       {/* 底部导航栏 */}
-      <View style={styles.bottomNavigation}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setMainTab('list')}
-        >
-          <Ionicons
-            name="list-outline"
-            size={24}
-            color={mainTab === 'list' ? '#4A90E2' : '#999'}
-          />
-          <Text style={[
-            styles.navText,
-            mainTab === 'list' && { color: '#4A90E2' }
-          ]}>列表</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/screens/addItem')}
-        >
-          <Ionicons name="add" size={24} color="#666" />
-          <Text style={styles.navText}>添加</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setMainTab('profile')}
-        >
-          <Ionicons
-            name="person-outline"
-            size={24}
-            color={mainTab === 'profile' ? '#4A90E2' : '#999'}
-          />
-          <Text style={[
-            styles.navText,
-            mainTab === 'profile' && { color: '#4A90E2' }
-          ]}>我的</Text>
-        </TouchableOpacity>
-      </View>
+      <ModernTabBar
+        activeTab={mainTab}
+        onTabChange={setMainTab}
+      />
     </View>
   );
 };
@@ -519,7 +395,7 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Theme.colors.background,
   },
   searchContainer: {
     padding: 16,
@@ -572,7 +448,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   listContainer: {
-    padding: 12,
+    paddingBottom: Theme.layout.tabBarHeight + Theme.spacing.lg,
   },
   itemCard: {
     backgroundColor: 'white',
@@ -666,49 +542,56 @@ const styles = StyleSheet.create({
   },
   profileContainer: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
+    padding: Theme.spacing.lg,
+    backgroundColor: Theme.colors.background,
+    paddingBottom: Theme.layout.tabBarHeight + Theme.spacing.lg,
   },
   settingItem: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    marginBottom: Theme.spacing.lg,
+    ...Theme.shadows.small,
   },
   settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 12,
+    fontSize: Theme.typography.fontSize.xl,
+    fontWeight: Theme.typography.fontWeight.semibold,
+    color: Theme.colors.textPrimary,
+    marginBottom: Theme.spacing.md,
   },
   settingInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: Theme.spacing.sm,
   },
   settingInput: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 12,
-    fontSize: 16,
+    backgroundColor: Theme.colors.backgroundSecondary,
+    borderRadius: Theme.borderRadius.md,
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.md,
+    marginRight: Theme.spacing.md,
+    fontSize: Theme.typography.fontSize.lg,
+    color: Theme.colors.textPrimary,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Theme.colors.border,
   },
   saveButton: {
-    backgroundColor: '#4A90E2',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: Theme.colors.primary,
+    borderRadius: Theme.borderRadius.md,
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.md,
+    ...Theme.shadows.small,
   },
   saveButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
+    color: Theme.colors.white,
+    fontSize: Theme.typography.fontSize.md,
+    fontWeight: Theme.typography.fontWeight.semibold,
   },
   settingDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+    fontSize: Theme.typography.fontSize.md,
+    color: Theme.colors.textSecondary,
+    lineHeight: Theme.typography.lineHeight.relaxed * Theme.typography.fontSize.md,
   },
   settingRow: {
     flexDirection: 'row',
