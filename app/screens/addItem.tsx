@@ -33,7 +33,7 @@ interface FavoriteItem {
 
 const AddItem = () => {
     const params = useLocalSearchParams();
-    const isEditing = params.mode === 'edit';
+    const isEditing = !!params.editId;
     const { triggerRefresh } = useFoodContext();
 
     // Tab 状态
@@ -60,9 +60,9 @@ const AddItem = () => {
 
     // 加载编辑数据
     useEffect(() => {
-        if (isEditing && params.id) {
+        if (isEditing && params.editId) {
             // 提取数据，然后更新状态
-            const id = params.id as string;
+            const id = params.editId as string;
             const name = params.name as string;
             const quantityParam = params.quantity as string;
             const unitParam = params.unit as string;
@@ -282,9 +282,9 @@ const AddItem = () => {
                 expiry_days: expiryDays ? parseInt(expiryDays) : undefined,
             };
 
-            if (isEditing && params.id) {
+            if (isEditing && params.editId) {
                 // 编辑现有物品
-                await updateFoodItem(parseInt(params.id as string), itemData);
+                await updateFoodItem(parseInt(params.editId as string), itemData);
                 // 添加编辑历史记录
                 await addHistory({
                     action_type: 'edit',
@@ -492,7 +492,10 @@ const AddItem = () => {
                         style={[styles.button, styles.favoriteButton]}
                         onPress={saveToFavorites}
                     >
-                        <Text style={styles.buttonText}>加入常买清单</Text>
+                        <Ionicons name="star" size={20} color={Theme.colors.white} style={styles.buttonIcon} />
+                        <Text style={styles.favoriteButtonText}>
+                            {isEditing ? '更新常买清单' : '加入常买清单'}
+                        </Text>
                     </TouchableOpacity>
 
                     <View style={styles.buttonGroup}>
@@ -618,8 +621,20 @@ const styles = StyleSheet.create({
         fontWeight: Theme.typography.fontWeight.semibold,
     },
     favoriteButton: {
-        backgroundColor: Theme.colors.backgroundSecondary,
+        backgroundColor: Theme.colors.warning,
         marginBottom: Theme.spacing.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...Theme.shadows.medium,
+    },
+    buttonIcon: {
+        marginRight: Theme.spacing.sm,
+    },
+    favoriteButtonText: {
+        color: Theme.colors.white,
+        fontSize: Theme.typography.fontSize.lg,
+        fontWeight: Theme.typography.fontWeight.semibold,
     },
     refrigeratedButton: {
         flex: 1,
