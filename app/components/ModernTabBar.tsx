@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -52,7 +51,7 @@ const ModernTabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => {
     }
   };
 
-  const renderTab = (tab: any, index: number) => {
+  const renderTab = (tab: any) => {
     const isActive = activeTab === tab.key;
     const isSpecial = tab.isSpecial;
 
@@ -65,7 +64,7 @@ const ModernTabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => {
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={Theme.colors.gradientPrimary}
+            colors={[Theme.colors.primary, Theme.colors.primaryLight]}
             style={styles.specialTabGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -94,7 +93,6 @@ const ModernTabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => {
             size={22}
             color={isActive ? Theme.colors.primary : Theme.colors.textTertiary}
           />
-          {isActive && <View style={styles.activeIndicator} />}
         </View>
         <Text style={[
           styles.tabText,
@@ -175,14 +173,7 @@ const styles = StyleSheet.create({
     // 活跃图标容器样式
   },
   
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -6,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Theme.colors.primary,
-  },
+
   
   tabText: {
     fontSize: Theme.typography.fontSize.xs,
